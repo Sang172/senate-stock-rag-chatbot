@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Senate Stock Trading Info Chatbot</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #333;
+            color: #eee;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        #chat-container {
+            width: 800px;
+            height: calc(100vh - 110px); /* Extend to bottom with some margin */
+            margin: 20px auto 0; /* Adjust margin for bottom spacing */
+            border: 1px solid #666;
+            padding: 10px;
+            overflow-y: auto;
+            background-color: #222;
+        }
+
+        /* Always show scrollbar */
+        #chat-container::-webkit-scrollbar {
+            width: 12px; /* Width of the scrollbar */
+        }
+
+        #chat-container::-webkit-scrollbar-track {
+            background: #444; /* Color of the track */
+        }
+
+        #chat-container::-webkit-scrollbar-thumb {
+            background-color: #666; /* Color of the thumb */
+            border-radius: 6px; /* Rounded corners */
+            border: 3px solid #444; /* Creates padding around the thumb */
+        }
+
+        .message {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 5px;
+            max-width: 65%;
+            display: flex; /* Use flexbox for label positioning */
+            align-items: center; /* Align items vertically */
+        }
+
+        .user {
+            background-color: #666;
+            margin-left: auto;
+            justify-content: flex-end; /* Align content to the right */
+        }
+
+        .llm {
+            background-color: #444;
+            margin-right: auto;
+            justify-content: flex-start; /* Align content to the left */
+        }
+
+        .message-label {
+            font-size: 0.8em;
+            margin-left: 10px; /* Spacing between label and message */
+            margin-right: 10px;
+        }
+
+        .user .message-label {
+            order: 2; /* Place label after message for user */
+        }
+
+        .llm .message-label {
+            order: -1; /* Place label before message for llm */
+        }
+
+        #input-area {
+            width: 800px;
+            display: flex;
+            margin: 10px auto;
+        }
+
+        #user-input {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #666;
+            background-color: #444;
+            color: #eee;
+        }
+
+        #send-button {
+            padding: 8px 16px;
+            background-color: #ffe6e6;
+            color: #333;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* Style for the typing indicator */
+        .typing-indicator {
+            color: #ffe6e6;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Senate Stock Trading Info Chatbot</h1>
+
+    <div id="input-area">
+        <input type="text" id="user-input" placeholder="Enter your message. ex: Give me every Senator who traded Amazon stock in office.">
+        <button id="send-button">Send</button>
+    </div>
+
+    <div id="chat-container">
+        </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        let typingIndicator = null; // Store the typing indicator element
+
+        // Function to send message and handle response
+        function sendMessage() {
+            const message = userInput.value;
+            if (message.trim() === "") return;
+
+            appendMessage(message, 'user');
+            userInput.value = ''; // Clear the input field
+
+            // Show typing indicator
+            showTypingIndicator();
+
+            fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Hide typing indicator
+                hideTypingIndicator();
+
+                if (data.response) {
+                    appendMessage(data.response, 'llm');
+                }
+                
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            })
+            .catch(error => {
+                console.error('Error sending message:', error);
+                // Hide typing indicator in case of error
+                hideTypingIndicator();
+            });
+        }
+
+        // Event listeners for sending message
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        function appendMessage(message, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', sender);
+
+            // Create and append the label
+            const labelSpan = document.createElement('span');
+            labelSpan.classList.add('message-label');
+            labelSpan.textContent = sender === 'user' ? 'You' : 'Expert Chatbot';
+            messageDiv.appendChild(labelSpan);
+
+            // Create and append the message text
+            const textSpan = document.createElement('span');
+            textSpan.textContent = message;
+            messageDiv.appendChild(textSpan);
+
+            chatContainer.appendChild(messageDiv);
+        }
+
+        // Function to show typing indicator
+        function showTypingIndicator() {
+            if (!typingIndicator) {
+                typingIndicator = document.createElement('span');
+                typingIndicator.classList.add('typing-indicator');
+                typingIndicator.textContent = 'Chatbot is typing...';
+                chatContainer.appendChild(typingIndicator);
+            }
+        }
+
+        // Function to hide typing indicator
+        function hideTypingIndicator() {
+            if (typingIndicator) {
+                chatContainer.removeChild(typingIndicator);
+                typingIndicator = null;
+            }
+        }
+
+        // Function to load chat history
+        function loadChatHistory() {
+            fetch('/api/history')
+            .then(response => response.json())
+            .then(data => {
+                if (data.history) {
+                    data.history.forEach(msg => {
+                        if (msg.user) {
+                            appendMessage(msg.user, 'user');
+                        }
+                        if (msg.llm) {
+                            appendMessage(msg.llm, 'llm');
+                        }
+                    });
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading chat history:', error);
+            });
+        }
+
+        // Load chat history when the page loads
+        loadChatHistory();
+    </script>
+</body>
+</html>

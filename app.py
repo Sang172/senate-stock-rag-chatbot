@@ -161,10 +161,10 @@ def chat():
     user_input = request.json.get("message")
     if user_input.lower() == 'exit':
         rag.memory = []
-        return jsonify({"response": "Conversation cleared."})  # or handle differently
+        return jsonify({"response": "Conversation cleared."})
 
     response = rag.run(user_input)
-    return jsonify({"response": response, "history": rag.memory})  # Include history
+    return jsonify({"response": response, "history": rag.memory}) 
 
 if __name__ == "__main__":
-    app.run(debug=True)  # Set debug=False for production
+    app.run(debug=True, host='0.0.0.0')
