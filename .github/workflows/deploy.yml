@@ -8,8 +8,6 @@ env:
   AWS_REGION: us-west-1
   ECR_REPOSITORY: senate-stock-rag-chatbot
   EC2_INSTANCE_ID: i-03a6913c3bf7503d4
-  S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
-  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
 jobs:
   deploy:
@@ -53,4 +51,7 @@ jobs:
             -p 80:5000 \
             -e S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }} \
             -e GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} \
+            -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+            -e AWS_REGION=${{ env.AWS_REGION }} \
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
