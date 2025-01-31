@@ -8,6 +8,8 @@ env:
   AWS_REGION: us-west-1
   ECR_REPOSITORY: senate-stock-rag-chatbot
   EC2_INSTANCE_ID: i-03a6913c3bf7503d4
+  S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
 jobs:
   deploy:
@@ -47,4 +49,8 @@ jobs:
           docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
           docker stop app || true
           docker rm app || true
-          docker run -d --name app -p 80:5000 ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+          docker run -d --name app \
+            -p 80:5000 \
+            -e S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }} \
+            -e GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} \
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
