@@ -22,12 +22,6 @@ GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 
-def lambda_handler(event, context):
-    # Your code here
-    return {
-        'statusCode': 200,
-        'body': 'Hello from Lambda!'
-    }
 
 class RAG:
     def __init__(self, documents, doc_embeddings, model_name="gemini-1.5-flash-latest"):
@@ -170,4 +164,5 @@ def chat():
 
 if __name__ == "__main__":
     logging.info("About to start Flask app on port 5000")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host='0.0.0.0', port=port)

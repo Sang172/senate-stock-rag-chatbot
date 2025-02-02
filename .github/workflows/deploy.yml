@@ -54,4 +54,4 @@ jobs:
           --region ${{ env.REGION }} \
           --allow-unauthenticated \
           --set-env-vars="GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" \
-          --port=5000
+          --timeout=300s
