@@ -14,7 +14,6 @@ from google.cloud import storage
 load_dotenv()
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_key.json"
 GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
-GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID')
 
 ROOT = 'https://efdsearch.senate.gov'
 LANDING_PAGE_URL = '{}/search/home/'.format(ROOT)
@@ -183,8 +182,8 @@ def main() -> pd.DataFrame:
     return all_txs
 
 
-def save_to_gcs(project_id, bucket_name, filename, dataframe):
-    storage_client = storage.Client(project=project_id)
+def save_to_gcs(bucket_name, filename, dataframe):
+    storage_client = storage.Client('a')
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(filename)
     temp_file_path = f"temp_{filename}"
@@ -201,5 +200,5 @@ if __name__ == '__main__':
     LOGGER.info('Dumping to .pickle')
 
     
-    save_to_gcs(GCP_PROJECT_ID, GCS_BUCKET_NAME, 'senate_trade.pickle', senator_txs)
+    save_to_gcs(GCS_BUCKET_NAME, 'senate_trade.pickle', senator_txs)
     LOGGER.info('Successfully uploaded senate_trade.pickle to GCS bucket: {}'.format(GCS_BUCKET_NAME))

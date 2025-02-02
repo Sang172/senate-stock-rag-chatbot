@@ -19,7 +19,6 @@ load_dotenv()
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_key.json"
 GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
-GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID')
 
 def get_embedding(text, model="models/text-embedding-004"):
     result = genai.embed_content(
@@ -132,16 +131,16 @@ def process(data):
 
     return strings
 
-def load_from_gcs(project_id, bucket_name, filename):
-    storage_client = storage.Client(project=project_id)
+def load_from_gcs(bucket_name, filename):
+    storage_client = storage.Client('a')
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(filename)
     with blob.open("rb") as file:
         data = pickle.load(file)
     return data
 
-def save_to_gcs(project_id, bucket_name, filename, dataframe):
-    storage_client = storage.Client(project=project_id)
+def save_to_gcs(bucket_name, filename, dataframe):
+    storage_client = storage.Client('a')
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(filename)
     temp_file_path = f"temp_{filename}"
@@ -154,7 +153,7 @@ def save_to_gcs(project_id, bucket_name, filename, dataframe):
 if __name__=='__main__':
 
     logger.info("Reading data from senate_trade.pickle")
-    data = load_from_gcs(GCP_PROJECT_ID, GCS_BUCKET_NAME, 'senate_trade.pickle')
+    data = load_from_gcs(GCS_BUCKET_NAME, 'senate_trade.pickle')
     logger.info("Successfully read data from senate_trade.pickle")
 
     logger.info("Processing data")
@@ -172,11 +171,11 @@ if __name__=='__main__':
     doc_embeddings = np.array(doc_embeddings)
 
     logger.info("Saving documents to documents.pickle in GCS bucket")
-    save_to_gcs(GCP_PROJECT_ID, GCS_BUCKET_NAME, 'documents.pickle', documents)
+    save_to_gcs(GCS_BUCKET_NAME, 'documents.pickle', documents)
     logger.info("Successfully saved documents to documents.pickle in GCS bucket")
 
     logger.info("Saving document embeddings to doc_embeddings.pickle in GCS bucket")
-    save_to_gcs(GCP_PROJECT_ID, GCS_BUCKET_NAME, 'doc_embeddings.pickle', doc_embeddings)
+    save_to_gcs(GCS_BUCKET_NAME, 'doc_embeddings.pickle', doc_embeddings)
     logger.info("Successfully saved document embeddings to doc_embeddings.pickle in GCS bucket")
 
 

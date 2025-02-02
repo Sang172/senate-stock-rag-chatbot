@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_key.json"
 GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
-GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID')
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 
@@ -135,8 +134,8 @@ class RAG:
 
 
 
-def load_from_gcs(project_id, bucket_name, filename):
-    storage_client = storage.Client(project=project_id)
+def load_from_gcs(bucket_name, filename):
+    storage_client = storage.Client('a')
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(filename)
     with blob.open("rb") as file:
@@ -144,11 +143,11 @@ def load_from_gcs(project_id, bucket_name, filename):
     return data
 
 logger.info("Loading documents from GCS")
-documents = load_from_gcs(GCP_PROJECT_ID, GCS_BUCKET_NAME, 'documents.pickle')
+documents = load_from_gcs(GCS_BUCKET_NAME, 'documents.pickle')
 logger.info("Successfully loaded documentss")
 
 logger.info("Loading embeddings from GCS")
-doc_embeddings = load_from_gcs(GCP_PROJECT_ID, GCS_BUCKET_NAME, 'doc_embeddings.pickle')
+doc_embeddings = load_from_gcs(GCS_BUCKET_NAME, 'doc_embeddings.pickle')
 logger.info("Successfully loaded embeddings")
 
 rag = RAG(documents, doc_embeddings)
