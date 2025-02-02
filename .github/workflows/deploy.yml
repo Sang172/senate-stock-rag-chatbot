@@ -33,6 +33,12 @@ jobs:
       with:
         project_id: ${{ env.PROJECT_ID }}
 
+    - name: 'Verify and Set Project'
+      run: |
+        echo "Using Project ID: ${{ env.PROJECT_ID }}"
+        gcloud config set project ${{ env.PROJECT_ID }}
+        gcloud config get-value project
+
     - name: Configure Docker
       run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
