@@ -1,19 +1,4 @@
-from flask import Flask
-import os
 
-app = Flask(__name__)
-
-@app.route("/")
-def hello():
-    return "Hello from Cloud Run!"
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    app.run(debug=False, host='0.0.0.0', port=port)
-
-
-
-'''
 import pickle
 import numpy as np
 import google.generativeai as genai
@@ -180,6 +165,5 @@ def chat():
 
 if __name__ == "__main__":
     logging.info("About to start Flask app on port 8080")
-    port = int(os.environ.get("PORT", 8080))
+    port = int(os.environ.get("PORT", 5000))
     app.run(debug=True, host='0.0.0.0', port=port)
-'''
