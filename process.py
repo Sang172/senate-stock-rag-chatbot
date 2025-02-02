@@ -1,5 +1,4 @@
 import pandas as pd
-import boto3
 import json
 import re
 import os
@@ -9,6 +8,7 @@ import numpy as np
 import google.generativeai as genai
 from dotenv import load_dotenv
 import logging
+from google.cloud import storage
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -17,8 +17,9 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME')
-s3 = boto3.client('s3')
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_key.json"
+GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
+GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID')
 
 def get_embedding(text, model="models/text-embedding-004"):
     result = genai.embed_content(
@@ -131,13 +132,29 @@ def process(data):
 
     return strings
 
+def load_from_gcs(project_id, bucket_name, filename):
+    storage_client = storage.Client(project=project_id)
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(filename)
+    with blob.open("rb") as file:
+        data = pickle.load(file)
+    return data
+
+def save_to_gcs(project_id, bucket_name, filename, dataframe):
+    storage_client = storage.Client(project=project_id)
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(filename)
+    temp_file_path = f"temp_{filename}"
+    with open(temp_file_path, "wb") as temp_file:
+        pickle.dump(dataframe, temp_file)
+    blob.upload_from_filename(temp_file_path)
+    os.remove(temp_file_path)
+
 
 if __name__=='__main__':
 
     logger.info("Reading data from senate_trade.pickle")
-    s3.download_file(S3_BUCKET_NAME, 'senate_trade.pickle', 'senate_trade.pickle')
-    with open('senate_trade.pickle', 'rb') as file:
-        data = pickle.load(file)
+    data = load_from_gcs(GCP_PROJECT_ID, GCS_BUCKET_NAME, 'senate_trade.pickle')
     logger.info("Successfully read data from senate_trade.pickle")
 
     logger.info("Processing data")
@@ -154,17 +171,13 @@ if __name__=='__main__':
 
     doc_embeddings = np.array(doc_embeddings)
 
-    logger.info("Saving documents to documents.pickle in S3")
-    with open('documents.pickle', 'wb') as f:
-        pickle.dump(documents, f)
-    s3.upload_file('documents.pickle', S3_BUCKET_NAME, 'documents.pickle')
-    logger.info("Successfully saved documents to documents.pickle in S3")
+    logger.info("Saving documents to documents.pickle in GCS bucket")
+    save_to_gcs(GCP_PROJECT_ID, GCS_BUCKET_NAME, 'documents.pickle', documents)
+    logger.info("Successfully saved documents to documents.pickle in GCS bucket")
 
-    logger.info("Saving document embeddings to doc_embeddings.pickle in S3")
-    with open('doc_embeddings.pickle', 'wb') as f:
-        pickle.dump(doc_embeddings, f)
-    s3.upload_file('doc_embeddings.pickle', S3_BUCKET_NAME, 'doc_embeddings.pickle')
-    logger.info("Successfully saved document embeddings to doc_embeddings.pickle in S3")
+    logger.info("Saving document embeddings to doc_embeddings.pickle in GCS bucket")
+    save_to_gcs(GCP_PROJECT_ID, GCS_BUCKET_NAME, 'doc_embeddings.pickle', doc_embeddings)
+    logger.info("Successfully saved document embeddings to doc_embeddings.pickle in GCS bucket")
 
 
     logger.info("Data processed and saved as pickle files in S3.")

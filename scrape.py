@@ -1,7 +1,6 @@
 """ Scrape the stock transactions from Senator periodic filings. """
 
 from bs4 import BeautifulSoup
-import boto3
 import os
 import logging
 import pandas as pd
@@ -10,7 +9,12 @@ import requests
 import time
 from typing import Any, List, Optional
 from dotenv import load_dotenv
+from google.cloud import storage
+
 load_dotenv()
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_key.json"
+GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
+GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID')
 
 ROOT = 'https://efdsearch.senate.gov'
 LANDING_PAGE_URL = '{}/search/home/'.format(ROOT)
@@ -36,8 +40,6 @@ REPORT_COL_NAMES = [
 
 LOGGER = logging.getLogger(__name__)
 
-S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME')
-s3 = boto3.client('s3')
 
 
 def add_rate_limit(f):
@@ -165,7 +167,6 @@ def txs_for_report(client: requests.Session, row: List[str]) -> pd.DataFrame:
     return pd.DataFrame(stocks).rename(
         columns=dict(enumerate(REPORT_COL_NAMES)))
 
-
 def main() -> pd.DataFrame:
     LOGGER.info('Initializing client')
     client = requests.Session()
@@ -182,6 +183,17 @@ def main() -> pd.DataFrame:
     return all_txs
 
 
+def save_to_gcs(project_id, bucket_name, filename, dataframe):
+    storage_client = storage.Client(project=project_id)
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(filename)
+    temp_file_path = f"temp_{filename}"
+    with open(temp_file_path, "wb") as temp_file:
+        pickle.dump(dataframe, temp_file)
+    blob.upload_from_filename(temp_file_path)
+    os.remove(temp_file_path)
+
+
 if __name__ == '__main__':
     log_format = '[%(asctime)s %(levelname)s] %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_format)
@@ -189,7 +201,5 @@ if __name__ == '__main__':
     LOGGER.info('Dumping to .pickle')
 
     
-    with open('senate_trade.pickle', 'wb') as f:
-        pickle.dump(senator_txs, f)
-    s3.upload_file('senate_trade.pickle', S3_BUCKET_NAME, 'senate_trade.pickle')
-    LOGGER.info('Successfully uploaded senate_trade.pickle to S3 bucket: {}'.format(S3_BUCKET_NAME))
+    save_to_gcs(GCP_PROJECT_ID, GCS_BUCKET_NAME, 'senate_trade.pickle', senator_txs)
+    LOGGER.info('Successfully uploaded senate_trade.pickle to GCS bucket: {}'.format(GCS_BUCKET_NAME))

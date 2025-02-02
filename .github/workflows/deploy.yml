@@ -1,57 +1,52 @@
-name: Deploy to AWS
+name: Deploy to Google Cloud Run
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 env:
-  AWS_REGION: us-west-1
-  ECR_REPOSITORY: senate-stock-rag-chatbot
-  EC2_INSTANCE_ID: i-03a6913c3bf7503d4
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+  GCP_SERVICE_NAME: ${{ secrets.GCP_SERVICE_NAME }}
+  GCP_REGION: ${{ secrets.GCP_REGION }}
+  IMAGE_NAME: ${{ secrets.IMAGE_NAME }}
 
 jobs:
   deploy:
+    name: Deploy
     runs-on: ubuntu-latest
-    
+
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout
+      uses: actions/checkout@v3
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
+    - name: Authenticate to Google Cloud
+      uses: 'google-github-actions/auth@v1'
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+    - name: Docker configuration
+      run: |-
+        echo ${{secrets.GCP_SA_KEY}} > gcloud-api-key.json
+        gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
 
-    - name: Build and push Docker image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-      run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
-        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} $ECR_REGISTRY/$ECR_REPOSITORY:latest
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+    - name: Build Docker Image
+      run: docker build -t ${{ env.GCP_REGION }}-docker.pkg.dev/$PROJECT_ID/$IMAGE_NAME:$GITHUB_SHA .
 
-    - name: Deploy to EC2
-      uses: appleboy/ssh-action@master
+    - name: Push Docker Image to Container Registry
+      run: docker push ${{ env.GCP_REGION }}-docker.pkg.dev/$PROJECT_ID/$IMAGE_NAME:$GITHUB_SHA
+
+    - name: Deploy to Cloud Run
+      uses: google-github-actions/deploy-cloudrun@v1
       with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ec2-user
-        key: ${{ secrets.EC2_SSH_KEY }}
-        script: |
-          aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
-          docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
-          docker stop app || true
-          docker rm app || true
-          docker run -d --name app \
-            -p 80:5000 \
-            -e S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }} \
-            -e GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} \
-            -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
-            -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-            -e AWS_REGION=${{ env.AWS_REGION }} \
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+        service: ${{ env.GCP_SERVICE_NAME }}
+        region: ${{ env.GCP_REGION }}
+        image: ${{ env.GCP_REGION }}-docker.pkg.dev/$PROJECT_ID/$IMAGE_NAME:$GITHUB_SHA
+        env_vars: |
+          GCS_BUCKET_NAME=${{ env.GCS_BUCKET_NAME }}
+        allow_unauthenticated: true

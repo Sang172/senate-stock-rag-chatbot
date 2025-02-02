@@ -6,8 +6,8 @@ import os
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from flask import Flask, render_template, request, jsonify
-import boto3
 import logging
+from google.cloud import storage
 from annoy import AnnoyIndex
 
 
@@ -16,10 +16,10 @@ logging.basicConfig(level=logging.INFO,
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
-
-
-
 load_dotenv()
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_key.json"
+GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
+GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID')
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 
@@ -132,25 +132,28 @@ class RAG:
     
 
 
-app = Flask(__name__)
 
 
-S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME')
-s3 = boto3.client('s3')
 
-logger.info("Loading documents from S3")
-s3.download_file(S3_BUCKET_NAME, 'documents.pickle', 'documents.pickle')
-with open('documents.pickle', 'rb') as file:
-    documents = pickle.load(file)
-logger.info("Successfully loaded documents")
+def load_from_gcs(project_id, bucket_name, filename):
+    storage_client = storage.Client(project=project_id)
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(filename)
+    with blob.open("rb") as file:
+        data = pickle.load(file)
+    return data
 
-logger.info("Loading embeddings from S3")
-s3.download_file(S3_BUCKET_NAME, 'doc_embeddings.pickle', 'doc_embeddings.pickle')
-with open('doc_embeddings.pickle', 'rb') as file:
-    doc_embeddings = pickle.load(file)
+logger.info("Loading documents from GCS")
+documents = load_from_gcs(GCP_PROJECT_ID, GCS_BUCKET_NAME, 'documents.pickle')
+logger.info("Successfully loaded documentss")
+
+logger.info("Loading embeddings from GCS")
+doc_embeddings = load_from_gcs(GCP_PROJECT_ID, GCS_BUCKET_NAME, 'doc_embeddings.pickle')
 logger.info("Successfully loaded embeddings")
 
 rag = RAG(documents, doc_embeddings)
+
+app = Flask(__name__)
 
 @app.route("/")
 def index():
@@ -166,5 +169,7 @@ def chat():
     response = rag.run(user_input)
     return jsonify({"response": response, "history": rag.memory}) 
 
+"""
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000)
+"""
