@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from google.cloud import storage
 
 load_dotenv()
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_key.json"
+# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_key.json"
 GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
 
 ROOT = 'https://efdsearch.senate.gov'

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_key.json"
+# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_key.json"
 GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
 
 def get_embedding(text, model="models/text-embedding-004"):

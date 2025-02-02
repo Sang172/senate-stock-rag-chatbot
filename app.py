@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 load_dotenv()
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_key.json"
+# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_key.json"
 GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
