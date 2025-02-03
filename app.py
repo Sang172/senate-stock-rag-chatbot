@@ -77,7 +77,7 @@ class RAG:
         Response: company: Amazon (AMZN), time: May 2021, May 2022
 
         User Query: find who traded any of the magnificent 7 stock in May 2023 
-        Response: company: Apple (AAPL), Microsoft (MSFT), Nvidia (NVDA), Alphabet (GOOG, GOOGL), Amazon (AMZN), Facebook/Meta (FB/META), Tesla (TSLA), time: May 2023
+        Response: company: Apple (AAPL), Microsoft (MSFT), Nvidia (NVDA), Alphabet/Google (GOOG, GOOGL), Amazon (AMZN), Facebook/Meta (FB/META), Tesla (TSLA), time: May 2023
         
         User Query: {user_query}
         Response:
