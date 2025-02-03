@@ -47,7 +47,7 @@ jobs:
       run: |
         gcloud builds submit \
           --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest \
-          --dockerfile Dockerfile .
+          --f Dockerfile .
 
     - name: Deploy Chatbot to Cloud Run
       run: |
@@ -62,7 +62,7 @@ jobs:
       run: |
         gcloud builds submit \
           --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.UPDATE_SERVICE_NAME }}:latest \
-          --dockerfile Dockerfile.update .
+          --f Dockerfile.update .
 
     - name: Deploy Update to Cloud Run
       run: |
