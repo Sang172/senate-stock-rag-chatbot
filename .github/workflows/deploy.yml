@@ -46,7 +46,7 @@ jobs:
     - name: Build and push Chatbot image
       run: |
         gcloud builds submit \
-          --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest
+          --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest \
           --file=Dockerfile
 
     - name: Deploy Chatbot to Cloud Run
