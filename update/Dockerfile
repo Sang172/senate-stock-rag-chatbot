@@ -5,7 +5,6 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Copy the requirements file into the container
-COPY requirements.txt .
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -16,6 +15,10 @@ RUN apt-get update && \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
+RUN pip install --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir --only-binary=:all: lxml==4.9.2
+
+COPY requirements.txt .
 # Install the required packages
 RUN pip install --no-cache-dir -r requirements.txt
 
