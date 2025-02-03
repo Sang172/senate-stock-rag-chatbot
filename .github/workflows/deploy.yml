@@ -70,5 +70,5 @@ jobs:
           --command "python" \
           --args "scrape.py" \
           --set-env-vars="GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" \
-          --task-timeout=10800s
+          --task-timeout=10800s \
           --project ${{ env.PROJECT_ID }}
