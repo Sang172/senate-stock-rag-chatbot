@@ -46,8 +46,7 @@ jobs:
     - name: Build and push Chatbot image
       run: |
         gcloud builds submit \
-          --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest \
-          --f Dockerfile .
+          --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest .
 
     - name: Deploy Chatbot to Cloud Run
       run: |
@@ -61,8 +60,7 @@ jobs:
     - name: Build and Push Update Image
       run: |
         gcloud builds submit \
-          --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.UPDATE_SERVICE_NAME }}:latest \
-          --f Dockerfile.update .
+          --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.UPDATE_SERVICE_NAME }}:latest ./update/
 
     - name: Deploy Update to Cloud Run
       run: |
