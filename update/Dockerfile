@@ -16,7 +16,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --upgrade pip setuptools wheel
-RUN pip install --no-cache-dir --only-binary=:all: lxml==4.9.2
+RUN pip install --no-cache-dir --only-binary=:all: lxml
 
 COPY requirements.txt .
 # Install the required packages
