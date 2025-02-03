@@ -64,9 +64,11 @@ jobs:
 
     - name: Deploy Update to Cloud Run
       run: |
-        gcloud run deploy ${{ env.UPDATE_SERVICE_NAME }} \
+        gcloud run jobs deploy ${{ env.UPDATE_SERVICE_NAME }} \
           --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.UPDATE_SERVICE_NAME }}:latest \
           --region ${{ env.REGION }} \
-          --allow-unauthenticated \
+          --command "python" \
+          --args "scrape.py" \
           --set-env-vars="GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" \
           --timeout=3600s
+          --project ${{ env.PROJECT_ID }}
