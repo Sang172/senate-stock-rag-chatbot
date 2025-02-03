@@ -8,6 +8,7 @@ on:
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: senate-stock-rag-chatbot
+  UPDATE_SERVICE_NAME: senate-stock-rag-update
   REGION: ${{ secrets.GCP_REGION }}
   REPOSITORY: ${{ secrets.GCP_AR_REPOSITORY }}
 
@@ -42,12 +43,13 @@ jobs:
     - name: Configure Docker
       run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-    - name: Build and push Docker image
+    - name: Build and push Chatbot image
       run: |
         gcloud builds submit \
           --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest
+          --file=Dockerfile
 
-    - name: Deploy to Cloud Run
+    - name: Deploy Chatbot to Cloud Run
       run: |
         gcloud run deploy ${{ env.SERVICE_NAME }} \
           --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest \
@@ -55,3 +57,18 @@ jobs:
           --allow-unauthenticated \
           --set-env-vars="GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" \
           --timeout=300s
+    
+    - name: Build and Push Update Image
+      run: |
+        gcloud builds submit \
+          --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.UPDATE_SERVICE_NAME }}:latest \
+          --file=Dockerfile.update
+
+    - name: Deploy Update to Cloud Run
+      run: |
+        gcloud run deploy ${{ env.UPDATE_SERVICE_NAME }} \
+          --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.UPDATE_SERVICE_NAME }}:latest \
+          --region ${{ env.REGION }} \
+          --allow-unauthenticated \
+          --set-env-vars="GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" \
+          --timeout=3600s
