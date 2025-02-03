@@ -4,4 +4,3 @@ pandas==2.1.4
 requests==2.31.0
 python-dotenv==1.0.1
 google-generativeai==0.3.2
-lxml==4.9.2
