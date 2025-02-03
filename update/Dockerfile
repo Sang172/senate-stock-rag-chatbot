@@ -9,10 +9,11 @@ COPY requirements.txt .
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        libxml2-dev \
-        libxslt-dev \
-        gcc \
-        python3-dev \
+    libxml2-dev \
+    libxslt-dev \
+    zlib1g-dev \
+    gcc \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install the required packages
