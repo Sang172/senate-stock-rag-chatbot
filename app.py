@@ -99,8 +99,9 @@ class RAG:
         retrieved_docs = self.retrieve_docs(augmented_query)
         if not retrieved_docs:
             return "I'm sorry. I have no data that is relevant to your input."
-        # print(f"{len(retrieved_docs)} documents retrieved")
-        # print(retrieved_docs[0])
+        logger.info(f"{len(retrieved_docs)} documents retrieved")
+        for doc in retrieved_docs:
+            logger.info(f"{doc}")
 
         prompt = "You are an expert in analyzing stock transaction records."
         prompt += f"\nAnswer the user query '{user_input}' based on the documents provided below."
