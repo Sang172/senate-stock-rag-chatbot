@@ -149,7 +149,7 @@ def save_to_gcs(bucket_name, filename, dataframe):
     blob.upload_from_filename(temp_file_path)
     os.remove(temp_file_path)
 
-
+"""
 if __name__=='__main__':
 
     logger.info("Reading data from senate_trade.pickle")
@@ -179,4 +179,5 @@ if __name__=='__main__':
     logger.info("Successfully saved document embeddings to doc_embeddings.pickle in GCS bucket")
 
 
-    logger.info("Data processed and saved as pickle files in S3.")
+    logger.info("Data processed and saved as pickle files in GCS bucket.")
+"""

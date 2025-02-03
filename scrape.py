@@ -1,6 +1,7 @@
 """ Scrape the stock transactions from Senator periodic filings. """
 
 from bs4 import BeautifulSoup
+import numpy as np
 import os
 import logging
 import pandas as pd
@@ -10,6 +11,7 @@ import time
 from typing import Any, List, Optional
 from dotenv import load_dotenv
 from google.cloud import storage
+from process import process, get_embedding, load_from_gcs
 
 load_dotenv()
 # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_key.json"
@@ -193,6 +195,36 @@ def save_to_gcs(bucket_name, filename, dataframe):
     os.remove(temp_file_path)
 
 
+def process_data(bucket_name, filename):
+    LOGGER.info("Reading data from senate_trade.pickle")
+    data = load_from_gcs(bucket_name, filename)
+    LOGGER.info("Successfully read data from senate_trade.pickle")
+
+    LOGGER.info("Processing data")
+    documents = process(data)
+    LOGGER.info("Data processing complete")
+
+    doc_embeddings = []
+    LOGGER.info(f"Start creating vector embeddings for {len(documents)} documents")
+    for i, doc in enumerate(documents):
+        if (i+1)%100==0:
+            LOGGER.info(f"Embedding created for {i+1} th document")
+        doc_embeddings.append(get_embedding(doc))
+    LOGGER.info("Embedding creation complete")
+
+    doc_embeddings = np.array(doc_embeddings)
+
+    LOGGER.info("Saving documents to documents.pickle in GCS bucket")
+    save_to_gcs(bucket_name, 'documents.pickle', documents)
+    LOGGER.info("Successfully saved documents to documents.pickle in GCS bucket")
+
+    LOGGER.info("Saving document embeddings to doc_embeddings.pickle in GCS bucket")
+    save_to_gcs(bucket_name, 'doc_embeddings.pickle', doc_embeddings)
+    LOGGER.info("Successfully saved document embeddings to doc_embeddings.pickle in GCS bucket")
+
+    LOGGER.info("Data processed and saved as pickle files in GCS.")
+
+
 if __name__ == '__main__':
     log_format = '[%(asctime)s %(levelname)s] %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_format)
@@ -202,3 +234,5 @@ if __name__ == '__main__':
     
     save_to_gcs(GCS_BUCKET_NAME, 'senate_trade.pickle', senator_txs)
     LOGGER.info('Successfully uploaded senate_trade.pickle to GCS bucket: {}'.format(GCS_BUCKET_NAME))
+
+    process_data(GCS_BUCKET_NAME, 'senate_trade.pickle')
