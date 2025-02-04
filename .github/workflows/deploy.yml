@@ -9,6 +9,7 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: senate-stock-rag-chatbot
   UPDATE_SERVICE_NAME: senate-stock-rag-update
+  TRIGGER_SERVICE_NAME: senate-stock-rag-update-trigger
   REGION: ${{ secrets.GCP_REGION }}
   REPOSITORY: ${{ secrets.GCP_AR_REPOSITORY }}
 
@@ -72,3 +73,16 @@ jobs:
           --set-env-vars="GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" \
           --task-timeout=10800s \
           --project ${{ env.PROJECT_ID }}
+
+    - name: Build and Push Trigger Image
+      run: |
+        gcloud builds submit \
+          --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.TRIGGER_SERVICE_NAME }}:latest ./trigger/
+
+    - name: Deploy Trigger to Cloud Run
+      run: |
+        gcloud run deploy ${{ env.TRIGGER_SERVICE_NAME }} \
+          --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.TRIGGER_SERVICE_NAME }}:latest \
+          --region ${{ env.REGION }} \
+          --no-allow-unauthenticated \
+          --timeout=300s

@@ -1,0 +1,4 @@
+functions-framework==3.*
+flask==3.*
+google-cloud-run==0.10.*
+gunicorn==21.*
