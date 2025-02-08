@@ -25,7 +25,7 @@ genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 
 class RAG:
-    def __init__(self, documents, doc_embeddings, model_name="gemini-1.5-flash-latest"):
+    def __init__(self, documents, doc_embeddings, model_name="gemini-2.0-flash"):
         self.documents = documents
         self.doc_embeddings = np.array(doc_embeddings)
         self.llm = genai.GenerativeModel(model_name)
