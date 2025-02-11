@@ -18,7 +18,6 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 load_dotenv()
-# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_key.json"
 GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
@@ -94,7 +93,6 @@ class RAG:
             for turn in self.memory:
                 history_str += f"User: {turn['user']}\nLLM: {turn['llm']}\n"
         augmented_query = self.augment_query(user_input + history_str)
-        # print(augmented_query + '\n')
 
         retrieved_docs = self.retrieve_docs(augmented_query)
         if not retrieved_docs:

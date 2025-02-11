@@ -3,7 +3,6 @@ import logging
 from google.cloud import run_v2
 from flask import Flask, jsonify
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -14,21 +13,17 @@ def trigger_job():
     try:
         logger.info("Starting job trigger")
         
-        # Create the client
         client = run_v2.JobsClient()
         
-        # Get the full job name
         job_path = client.job_path(
             'senate-stock-rag-chatbot',
             'us-west1',
             'senate-stock-rag-update'
         )
         
-        # Create and execute the job request
         request = run_v2.RunJobRequest(name=job_path)
         operation = client.run_job(request=request)
         
-        # Don't wait for completion, just return success
         return jsonify({
             "status": "success",
             "message": f"Job triggered: {operation.operation.name}"

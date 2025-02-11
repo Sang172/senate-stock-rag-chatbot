@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_key.json"
 GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
 
 def get_embedding(text, model="models/text-embedding-004"):
@@ -73,8 +72,6 @@ def process(data):
             sub_df = sub_df.sort_values('Date')
             sub_df = sub_df.reset_index(drop=True)
             title = f"Senator {name}'s Transactions Related to the Ticker {ticker} in {month}\n\n"
-            # assets = list(sub_df['Asset Name'].unique())
-            # title += f'Involves assets such as {', '.join(assets)}.\n\n'
             content = dataframe_to_string(sub_df)
             strings.append(title+content)
 
@@ -148,36 +145,3 @@ def save_to_gcs(bucket_name, filename, dataframe):
         pickle.dump(dataframe, temp_file)
     blob.upload_from_filename(temp_file_path)
     os.remove(temp_file_path)
-
-"""
-if __name__=='__main__':
-
-    logger.info("Reading data from senate_trade.pickle")
-    data = load_from_gcs(GCS_BUCKET_NAME, 'senate_trade.pickle')
-    logger.info("Successfully read data from senate_trade.pickle")
-
-    logger.info("Processing data")
-    documents = process(data)
-    logger.info("Data processing complete")
-
-    doc_embeddings = []
-    logger.info(f"Start creating vector embeddings for {len(documents)} documents")
-    for i, doc in enumerate(documents):
-        if (i+1)%100==0:
-            logger.info(f"Embedding created for {i+1} th document")
-        doc_embeddings.append(get_embedding(doc))
-    logger.info("Embedding creation complete")
-
-    doc_embeddings = np.array(doc_embeddings)
-
-    logger.info("Saving documents to documents.pickle in GCS bucket")
-    save_to_gcs(GCS_BUCKET_NAME, 'documents.pickle', documents)
-    logger.info("Successfully saved documents to documents.pickle in GCS bucket")
-
-    logger.info("Saving document embeddings to doc_embeddings.pickle in GCS bucket")
-    save_to_gcs(GCS_BUCKET_NAME, 'doc_embeddings.pickle', doc_embeddings)
-    logger.info("Successfully saved document embeddings to doc_embeddings.pickle in GCS bucket")
-
-
-    logger.info("Data processed and saved as pickle files in GCS bucket.")
-"""

@@ -14,7 +14,6 @@ from google.cloud import storage
 from process import process, get_embedding, load_from_gcs
 
 load_dotenv()
-# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_key.json"
 GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
 
 ROOT = 'https://efdsearch.senate.gov'
@@ -140,7 +139,6 @@ def txs_for_report(client: requests.Session, row: List[str]) -> pd.DataFrame:
     """
     first, last, _, link_html, date_received = row
     link = BeautifulSoup(link_html, 'lxml').a.get('href')
-    # We cannot parse PDFs
     if link[:len(PDF_PREFIX)] == PDF_PREFIX:
         return pd.DataFrame()
 

@@ -1,10 +1,7 @@
-# Use the official Python image as the base image
 FROM python:3.12-slim
 
-# Set the working directory in the container
 WORKDIR /app
 
-# Copy the requirements file into the container
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -19,11 +16,8 @@ RUN pip install --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir --only-binary=:all: lxml
 
 COPY requirements.txt .
-# Install the required packages
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the scraper and processor scripts
 COPY scrape.py process.py ./
 
-# Command to run your update script
 CMD ["python", "scrape.py"]
