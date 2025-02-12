@@ -15,27 +15,26 @@
 
         #chat-container {
             width: 800px;
-            height: calc(100vh - 110px); /* Extend to bottom with some margin */
-            margin: 20px auto 0; /* Adjust margin for bottom spacing */
+            height: calc(100vh - 110px); 
+            margin: 20px auto 0; 
             border: 1px solid #666;
             padding: 10px;
             overflow-y: auto;
             background-color: #222;
         }
 
-        /* Always show scrollbar */
         #chat-container::-webkit-scrollbar {
-            width: 12px; /* Width of the scrollbar */
+            width: 12px; 
         }
 
         #chat-container::-webkit-scrollbar-track {
-            background: #444; /* Color of the track */
+            background: #444; 
         }
 
         #chat-container::-webkit-scrollbar-thumb {
-            background-color: #666; /* Color of the thumb */
-            border-radius: 6px; /* Rounded corners */
-            border: 3px solid #444; /* Creates padding around the thumb */
+            background-color: #666;
+            border-radius: 6px;
+            border: 3px solid #444;
         }
 
         .message {
@@ -43,34 +42,34 @@
             padding: 8px;
             border-radius: 5px;
             max-width: 65%;
-            display: flex; /* Use flexbox for label positioning */
-            align-items: center; /* Align items vertically */
+            display: flex;
+            align-items: center;
         }
 
         .user {
             background-color: #666;
             margin-left: auto;
-            justify-content: flex-end; /* Align content to the right */
+            justify-content: flex-end;
         }
 
         .llm {
             background-color: #444;
             margin-right: auto;
-            justify-content: flex-start; /* Align content to the left */
+            justify-content: flex-start;
         }
 
         .message-label {
             font-size: 0.8em;
-            margin-left: 10px; /* Spacing between label and message */
+            margin-left: 10px;
             margin-right: 10px;
         }
 
         .user .message-label {
-            order: 2; /* Place label after message for user */
+            order: 2;
         }
 
         .llm .message-label {
-            order: -1; /* Place label before message for llm */
+            order: -1; 
         }
 
         #input-area {
@@ -95,7 +94,6 @@
             cursor: pointer;
         }
 
-        /* Style for the typing indicator */
         .typing-indicator {
             color: #ffe6e6;
             margin-left: 5px;
@@ -117,17 +115,15 @@
         const chatContainer = document.getElementById('chat-container');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');
-        let typingIndicator = null; // Store the typing indicator element
+        let typingIndicator = null;
 
-        // Function to send message and handle response
         function sendMessage() {
             const message = userInput.value;
             if (message.trim() === "") return;
 
             appendMessage(message, 'user');
-            userInput.value = ''; // Clear the input field
+            userInput.value = ''; 
 
-            // Show typing indicator
             showTypingIndicator();
 
             fetch('/api/chat', {
@@ -139,7 +135,6 @@
             })
             .then(response => response.json())
             .then(data => {
-                // Hide typing indicator
                 hideTypingIndicator();
 
                 if (data.response) {
@@ -150,12 +145,10 @@
             })
             .catch(error => {
                 console.error('Error sending message:', error);
-                // Hide typing indicator in case of error
                 hideTypingIndicator();
             });
         }
 
-        // Event listeners for sending message
         sendButton.addEventListener('click', sendMessage);
         userInput.addEventListener('keyup', function(event) {
             if (event.key === 'Enter') {
@@ -167,13 +160,11 @@
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message', sender);
 
-            // Create and append the label
             const labelSpan = document.createElement('span');
             labelSpan.classList.add('message-label');
             labelSpan.textContent = sender === 'user' ? 'You' : 'Expert Chatbot';
             messageDiv.appendChild(labelSpan);
 
-            // Create and append the message text
             const textSpan = document.createElement('span');
             textSpan.textContent = message;
             messageDiv.appendChild(textSpan);
@@ -181,7 +172,6 @@
             chatContainer.appendChild(messageDiv);
         }
 
-        // Function to show typing indicator
         function showTypingIndicator() {
             if (!typingIndicator) {
                 typingIndicator = document.createElement('span');
@@ -191,7 +181,6 @@
             }
         }
 
-        // Function to hide typing indicator
         function hideTypingIndicator() {
             if (typingIndicator) {
                 chatContainer.removeChild(typingIndicator);
@@ -199,7 +188,6 @@
             }
         }
 
-        // Function to load chat history
         function loadChatHistory() {
             fetch('/api/history')
             .then(response => response.json())
@@ -221,7 +209,6 @@
             });
         }
 
-        // Load chat history when the page loads
         loadChatHistory();
     </script>
 </body>
