@@ -7,43 +7,18 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  SERVICE_NAME: senate-stock-rag-chatbot
+  UPDATE_SERVICE_NAME: senate-stock-rag-update
+  TRIGGER_SERVICE_NAME: senate-stock-rag-update-trigger
   REGION: ${{ secrets.GCP_REGION }}
   REPOSITORY: ${{ secrets.GCP_AR_REPOSITORY }}
-  GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
-  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
 jobs:
-  deploy:
+  deploy-chatbot:
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
       id-token: 'write'
-    strategy:
-      matrix:
-        include:
-          - service_name: senate-stock-rag-chatbot
-            path: .
-            type: service
-            allow_unauthenticated: true 
-            command: "" 
-            args: "" 
-            timeout: 300s
-          - service_name: senate-stock-rag-update
-            path: ./update/
-            type: job
-            allow_unauthenticated: false
-            command: "python"
-            args: "scrape.py"
-            timeout: 10800s
-          - service_name: senate-stock-rag-update-trigger
-            path: ./trigger/
-            type: service
-            allow_unauthenticated: false
-            command: ""
-            args: ""
-            timeout: 300s
-
-
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -68,27 +43,110 @@ jobs:
     - name: Configure Docker
       run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-    - name: Build and Push Image
+    - name: Build and push Chatbot image
       run: |
         gcloud builds submit \
-          --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ matrix.service_name }}:latest ${{ matrix.path }}
+          --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest .
 
-    - name: Deploy to Cloud Run
+    - name: Deploy Chatbot to Cloud Run
       run: |
-        if [ "${{ matrix.type }}" == "service" ]; then
-          gcloud run deploy ${{ matrix.service_name }} \
-            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ matrix.service_name }}:latest \
-            --region ${{ env.REGION }} \
-            --set-env-vars="GCS_BUCKET_NAME=${{ env.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ env.GEMINI_API_KEY }}" \
-            --timeout=${{ matrix.timeout }}
-            ${{ matrix.allow_unauthenticated && '--allow-unauthenticated' || '--no-allow-unauthenticated' }}
-        elif [ "${{ matrix.type }}" == "job" ]; then
-          gcloud run jobs deploy ${{ matrix.service_name }} \
-            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ matrix.service_name }}:latest \
-            --region ${{ env.REGION }} \
-            --command "${{ matrix.command }}" \
-            --args "${{ matrix.args }}" \
-            --set-env-vars="GCS_BUCKET_NAME=${{ env.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ env.GEMINI_API_KEY }}" \
-            --task-timeout=${{ matrix.timeout }} \
-            --project ${{ env.PROJECT_ID }}
-        fi
+        gcloud run deploy ${{ env.SERVICE_NAME }} \
+          --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest \
+          --region ${{ env.REGION }} \
+          --allow-unauthenticated \
+          --set-env-vars="GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" \
+          --timeout=300s
+
+  deploy-update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - id: 'auth'
+      name: 'Authenticate to Google Cloud'
+      uses: 'google-github-actions/auth@v1'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+          project_id: ${{ env.PROJECT_ID }}
+    - name: 'Verify and Set Project'
+      run: |
+        echo "Using Project ID: ${{ env.PROJECT_ID }}"
+        gcloud config set project ${{ env.PROJECT_ID }}
+        gcloud config get-value project
+
+    - name: Configure Docker
+      run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+    - name: Build and Push Update Image
+      run: |
+        gcloud builds submit \
+          --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.UPDATE_SERVICE_NAME }}:latest ./update/
+
+    - name: Deploy Update to Cloud Run
+      run: |
+        gcloud run jobs deploy ${{ env.UPDATE_SERVICE_NAME }} \
+          --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.UPDATE_SERVICE_NAME }}:latest \
+          --region ${{ env.REGION }} \
+          --command "python" \
+          --args "scrape.py" \
+          --set-env-vars="GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" \
+          --task-timeout=10800s \
+          --project ${{ env.PROJECT_ID }}
+
+  deploy-trigger:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - id: 'auth'
+      name: 'Authenticate to Google Cloud'
+      uses: 'google-github-actions/auth@v1'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+          project_id: ${{ env.PROJECT_ID }}
+
+    - name: 'Verify and Set Project'
+      run: |
+        echo "Using Project ID: ${{ env.PROJECT_ID }}"
+        gcloud config set project ${{ env.PROJECT_ID }}
+        gcloud config get-value project
+
+    - name: Configure Docker
+      run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+    - name: Build and Push Trigger Image
+      run: |
+        gcloud builds submit \
+          --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.TRIGGER_SERVICE_NAME }}:latest ./trigger/
+
+    - name: Deploy Trigger to Cloud Run
+      run: |
+        gcloud run deploy ${{ env.TRIGGER_SERVICE_NAME }} \
+          --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.TRIGGER_SERVICE_NAME }}:latest \
+          --region ${{ env.REGION }} \
+          --no-allow-unauthenticated \
+          --timeout=300s
+  
+  deploy-all:
+      needs: [deploy-chatbot, deploy-update, deploy-trigger]
+      runs-on: ubuntu-latest
+      steps:
+        - name: dummy step
+          run: echo "All services deployed"
+
