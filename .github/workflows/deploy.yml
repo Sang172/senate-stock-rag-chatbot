@@ -7,11 +7,10 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  SERVICE_NAME: senate-stock-rag-chatbot
-  UPDATE_SERVICE_NAME: senate-stock-rag-update
-  TRIGGER_SERVICE_NAME: senate-stock-rag-update-trigger
   REGION: ${{ secrets.GCP_REGION }}
   REPOSITORY: ${{ secrets.GCP_AR_REPOSITORY }}
+  GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
 jobs:
   deploy:
@@ -19,6 +18,31 @@ jobs:
     permissions:
       contents: 'read'
       id-token: 'write'
+    strategy:
+      matrix:
+        include:
+          - service_name: senate-stock-rag-chatbot
+            path: .
+            type: service
+            allow_unauthenticated: true 
+            command: "" 
+            args: "" 
+            timeout: 300s
+          - service_name: senate-stock-rag-update
+            path: ./update/
+            type: job
+            allow_unauthenticated: false
+            command: "python"
+            args: "scrape.py"
+            timeout: 10800s
+          - service_name: senate-stock-rag-update-trigger
+            path: ./trigger/
+            type: service
+            allow_unauthenticated: false
+            command: ""
+            args: ""
+            timeout: 300s
+
 
     steps:
     - name: Checkout
@@ -44,45 +68,27 @@ jobs:
     - name: Configure Docker
       run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-    - name: Build and push Chatbot image
+    - name: Build and Push Image
       run: |
         gcloud builds submit \
-          --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest .
+          --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ matrix.service_name }}:latest ${{ matrix.path }}
 
-    - name: Deploy Chatbot to Cloud Run
+    - name: Deploy to Cloud Run
       run: |
-        gcloud run deploy ${{ env.SERVICE_NAME }} \
-          --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest \
-          --region ${{ env.REGION }} \
-          --allow-unauthenticated \
-          --set-env-vars="GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" \
-          --timeout=300s
-    
-    - name: Build and Push Update Image
-      run: |
-        gcloud builds submit \
-          --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.UPDATE_SERVICE_NAME }}:latest ./update/
-
-    - name: Deploy Update to Cloud Run
-      run: |
-        gcloud run jobs deploy ${{ env.UPDATE_SERVICE_NAME }} \
-          --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.UPDATE_SERVICE_NAME }}:latest \
-          --region ${{ env.REGION }} \
-          --command "python" \
-          --args "scrape.py" \
-          --set-env-vars="GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" \
-          --task-timeout=10800s \
-          --project ${{ env.PROJECT_ID }}
-
-    - name: Build and Push Trigger Image
-      run: |
-        gcloud builds submit \
-          --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.TRIGGER_SERVICE_NAME }}:latest ./trigger/
-
-    - name: Deploy Trigger to Cloud Run
-      run: |
-        gcloud run deploy ${{ env.TRIGGER_SERVICE_NAME }} \
-          --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.TRIGGER_SERVICE_NAME }}:latest \
-          --region ${{ env.REGION }} \
-          --no-allow-unauthenticated \
-          --timeout=300s
+        if [ "${{ matrix.type }}" == "service" ]; then
+          gcloud run deploy ${{ matrix.service_name }} \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ matrix.service_name }}:latest \
+            --region ${{ env.REGION }} \
+            --set-env-vars="GCS_BUCKET_NAME=${{ env.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ env.GEMINI_API_KEY }}" \
+            --timeout=${{ matrix.timeout }}
+            ${{ matrix.allow_unauthenticated && '--allow-unauthenticated' || '--no-allow-unauthenticated' }}
+        elif [ "${{ matrix.type }}" == "job" ]; then
+          gcloud run jobs deploy ${{ matrix.service_name }} \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ matrix.service_name }}:latest \
+            --region ${{ env.REGION }} \
+            --command "${{ matrix.command }}" \
+            --args "${{ matrix.args }}" \
+            --set-env-vars="GCS_BUCKET_NAME=${{ env.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ env.GEMINI_API_KEY }}" \
+            --task-timeout=${{ matrix.timeout }} \
+            --project ${{ env.PROJECT_ID }}
+        fi
