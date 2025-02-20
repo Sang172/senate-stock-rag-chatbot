@@ -124,10 +124,6 @@ class RAG:
         return response
     
 
-
-
-
-
 def load_from_gcs(bucket_name, filename):
     storage_client = storage.Client('a')
     bucket = storage_client.bucket(bucket_name)
