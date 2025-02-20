@@ -11,7 +11,7 @@ import time
 from typing import Any, List, Optional
 from dotenv import load_dotenv
 from google.cloud import storage
-from process import process, get_embedding, load_from_gcs
+from process import process, get_embeddings, load_from_gcs
 
 load_dotenv()
 GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
@@ -204,10 +204,7 @@ def process_data(bucket_name, filename):
 
     doc_embeddings = []
     LOGGER.info(f"Start creating vector embeddings for {len(documents)} documents")
-    for i, doc in enumerate(documents):
-        if (i+1)%100==0:
-            LOGGER.info(f"Embedding created for {i+1} th document")
-        doc_embeddings.append(get_embedding(doc))
+    doc_embeddings = get_embeddings(documents)
     LOGGER.info("Embedding creation complete")
 
     doc_embeddings = np.array(doc_embeddings)

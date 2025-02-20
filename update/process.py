@@ -19,12 +19,23 @@ load_dotenv()
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
 
-def get_embedding(text, model="models/text-embedding-004"):
-    result = genai.embed_content(
-        model=model,
-        content=text
-    )
-    return result['embedding']
+def get_embeddings(texts, model="models/text-embedding-004", batch_size=50):
+
+    all_embeddings = []
+    num_texts = len(texts)
+
+    for i in range(0, num_texts, batch_size):
+        batch = texts[i:i + batch_size]
+        logger.info(f"Getting embeddings for documents {i}-{i+batch_size}")
+
+        result = genai.embed_content(
+            model=model,
+            content=batch
+        )
+        embeddings = result['embedding']
+        all_embeddings.extend(embeddings)
+
+    return all_embeddings
 
 
 def dataframe_to_string(df):
