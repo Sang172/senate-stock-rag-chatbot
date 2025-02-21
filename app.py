@@ -29,34 +29,15 @@ INDEX_ENDPOINT_ID = os.environ.get('INDEX_ENDPOINT_ID')
 class RAG:
     def __init__(self, documents, doc_embeddings, model_name="gemini-2.0-flash"):
         self.documents = documents
-        self.doc_embeddings = np.array(doc_embeddings)
+        self.doc_embeddings = doc_embeddings
         self.llm = genai.GenerativeModel(model_name)
         self.memory = []
-        self.index = self.create_index(self.doc_embeddings)
         self.index_endpoint = self.get_index_endpoint()
-
-    def create_index(self, embeddings):
-        dimension = embeddings.shape[1]
-        index = AnnoyIndex(dimension, 'euclidean')
-        for i, emb in enumerate(embeddings):
-            index.add_item(i, emb)
-        index.build(200)
-        return index
     
     def get_index_endpoint(self):
-        logger.info("Entering get_index_endpoint function")
-        logger.info(f"Project ID: {PROJECT_ID}, Region: {REGION}, Index Endpoint ID: {INDEX_ENDPOINT_ID}")
-        try:
-            logger.info("Initializing aiplatform...")
-            aiplatform.init(project=PROJECT_ID, location=REGION)
-            logger.info("aiplatform.init successful")
-            logger.info("Creating MatchingEngineIndexEndpoint...")
-            index_endpoint = aiplatform.MatchingEngineIndexEndpoint(INDEX_ENDPOINT_ID)
-            logger.info("MatchingEngineIndexEndpoint creation successful")
-            return index_endpoint
-        except Exception as e:
-            logger.error(f"Error in get_index_endpoint: {e}")
-            raise
+        aiplatform.init(project=PROJECT_ID, location=REGION)
+        index_endpoint = aiplatform.MatchingEngineIndexEndpoint(INDEX_ENDPOINT_ID)
+        return index_endpoint
 
 
     def get_embedding(self, text, model="models/text-embedding-004"):
@@ -68,9 +49,14 @@ class RAG:
 
     def retrieve_docs(self, user_input, threshold=0.5):
         input_embedding = self.get_embedding(user_input)
-        similar_indices = self.index.get_nns_by_vector(input_embedding, 150, include_distances=False)
+        response = self.index_endpoint.find_neighbors(
+            deployed_index_id="senate_stock_rag_index_1740106911167", 
+            queries=[input_embedding],
+            num_neighbors=150 
+        )
         similar_documents = []
-        for i in similar_indices:
+        for neighbor in response[0]:
+            i = int(neighbor.id)
             similarity = cosine_similarity([input_embedding], [self.doc_embeddings[i]])
             if similarity >= threshold:
                 similar_documents.append([self.documents[i], similarity])
