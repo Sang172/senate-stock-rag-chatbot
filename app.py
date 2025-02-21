@@ -33,6 +33,7 @@ class RAG:
         self.llm = genai.GenerativeModel(model_name)
         self.memory = []
         self.index = self.create_index(self.doc_embeddings)
+        self.index_endpoint = self.get_index_endpoint()
 
     def create_index(self, embeddings):
         dimension = embeddings.shape[1]
@@ -41,6 +42,11 @@ class RAG:
             index.add_item(i, emb)
         index.build(200)
         return index
+    
+    def get_index_endpoint(self):
+        aiplatform.init(project=PROJECT_ID, location=REGION)
+        index_endpoint = aiplatform.MatchingEngineIndexEndpoint(INDEX_ENDPOINT_ID)
+        return index_endpoint
 
     def get_embedding(self, text, model="models/text-embedding-004"):
         result = genai.embed_content(
