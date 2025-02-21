@@ -9,7 +9,7 @@ import numpy as np
 from flask import Flask, render_template, request, jsonify
 import logging
 from google.cloud import storage
-from annoy import AnnoyIndex
+from google.cloud import aiplatform
 
 
 logging.basicConfig(level=logging.INFO,
@@ -20,7 +20,9 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-
+PROJECT_ID = os.environ.get('GCP_PROJECT_ID')
+REGION = os.environ.get('GCP_REGION')
+INDEX_ENDPOINT_ID = os.environ.get('INDEX_ENDPOINT_ID')
 
 
 class RAG:
@@ -29,15 +31,12 @@ class RAG:
         self.doc_embeddings = np.array(doc_embeddings)
         self.llm = genai.GenerativeModel(model_name)
         self.memory = []
-        self.index = self.create_index(self.doc_embeddings)
-
-    def create_index(self, embeddings):
-        dimension = embeddings.shape[1]
-        index = AnnoyIndex(dimension, 'euclidean')
-        for i, emb in enumerate(embeddings):
-            index.add_item(i, emb)
-        index.build(200)
-        return index
+        self.index_endpoint = self.get_index_endpoint()
+    
+    def get_index_endpoint(self):
+        aiplatform.init(project=PROJECT_ID, location=REGION)
+        index_endpoint = aiplatform.MatchingEngineIndexEndpoint(INDEX_ENDPOINT_ID)
+        return index_endpoint
 
     def get_embedding(self, text, model="models/text-embedding-004"):
         result = genai.embed_content(
@@ -48,9 +47,14 @@ class RAG:
 
     def retrieve_docs(self, user_input, threshold=0.5):
         input_embedding = self.get_embedding(user_input)
-        similar_indices = self.index.get_nns_by_vector(input_embedding, 150, include_distances=False)
+        response = self.index_endpoint.find_neighbors(
+            deployed_index_id="senate_stock_rag_index_1740106911167", 
+            queries=[input_embedding],
+            num_neighbors=150 
+        )
         similar_documents = []
-        for i in similar_indices:
+        for neighbor in response[0]:
+            i = int(neighbor.id)
             similarity = cosine_similarity([input_embedding], [self.doc_embeddings[i]])
             if similarity >= threshold:
                 similar_documents.append([self.documents[i], similarity])
@@ -98,8 +102,7 @@ class RAG:
         if not retrieved_docs:
             return "I'm sorry. I have no data that is relevant to your input."
         logger.info(f"{len(retrieved_docs)} documents retrieved")
-        for doc in retrieved_docs:
-            logger.info(f"{doc}")
+        logger.info(f"{retrieved_docs[0]}")
 
         prompt = "You are an expert in analyzing stock transaction records."
         prompt += f"\nAnswer the user query '{user_input}' based on the documents provided below."

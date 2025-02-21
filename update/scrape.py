@@ -12,6 +12,7 @@ from typing import Any, List, Optional
 from dotenv import load_dotenv
 from google.cloud import storage
 from process import process, get_embeddings, load_from_gcs
+import json
 
 load_dotenv()
 GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
@@ -193,6 +194,23 @@ def save_to_gcs(bucket_name, filename, dataframe):
     os.remove(temp_file_path)
 
 
+def upload_embeddings_to_gcs(embeddings, doc_ids, bucket_name, destination_blob_name):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(destination_blob_name)
+
+    embeddings_data = []
+    for doc_id, embedding in zip(doc_ids, embeddings):
+        embeddings_data.append(
+            {"id": doc_id, "embedding": embedding.tolist()}
+        )
+
+    data_str = "\n".join([json.dumps(item) for item in embeddings_data])
+
+    blob.upload_from_string(data_str)
+    LOGGER.info(f"Embeddings uploaded to gs://{bucket_name}/{destination_blob_name}")
+
+
 def process_data(bucket_name, filename):
     LOGGER.info("Reading data from senate_trade.pickle")
     data = load_from_gcs(bucket_name, filename)
@@ -211,13 +229,16 @@ def process_data(bucket_name, filename):
 
     LOGGER.info("Saving documents to documents.pickle in GCS bucket")
     save_to_gcs(bucket_name, 'documents.pickle', documents)
-    LOGGER.info("Successfully saved documents to documents.pickle in GCS bucket")
+    LOGGER.info("Successfully saved documents to GCS bucket")
 
-    LOGGER.info("Saving document embeddings to doc_embeddings.pickle in GCS bucket")
+
+    LOGGER.info("Saving document embeddings to doc_embeddings.pickle and embeddings/embeddings.json in GCS bucket")
     save_to_gcs(bucket_name, 'doc_embeddings.pickle', doc_embeddings)
-    LOGGER.info("Successfully saved document embeddings to doc_embeddings.pickle in GCS bucket")
+    doc_ids = [str(i) for i in range(len(doc_embeddings))]
+    upload_embeddings_to_gcs(doc_embeddings, doc_ids, GCS_BUCKET_NAME, 'embeddings/embeddings.json')
+    LOGGER.info("Successfully saved document embeddings to GCS bucket")
 
-    LOGGER.info("Data processed and saved as pickle files in GCS.")
+    LOGGER.info("Data processed and saved to GCS.")
 
 
 if __name__ == '__main__':
