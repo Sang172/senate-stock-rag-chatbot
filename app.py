@@ -10,7 +10,6 @@ from flask import Flask, render_template, request, jsonify
 import logging
 from google.cloud import storage
 from google.cloud import aiplatform
-from annoy import AnnoyIndex
 
 
 logging.basicConfig(level=logging.INFO,
@@ -52,7 +51,7 @@ class RAG:
         response = self.index_endpoint.find_neighbors(
             deployed_index_id="senate_stock_rag_index_1740106911167", 
             queries=[input_embedding],
-            num_neighbors=150 
+            num_neighbors=150
         )
         similar_documents = []
         for neighbor in response[0]:
