@@ -10,6 +10,7 @@ from flask import Flask, render_template, request, jsonify
 import logging
 from google.cloud import storage
 from google.cloud import aiplatform
+from annoy import AnnoyIndex
 
 
 logging.basicConfig(level=logging.INFO,
@@ -31,12 +32,15 @@ class RAG:
         self.doc_embeddings = np.array(doc_embeddings)
         self.llm = genai.GenerativeModel(model_name)
         self.memory = []
-        self.index_endpoint = self.get_index_endpoint()
-    
-    def get_index_endpoint(self):
-        aiplatform.init(project=PROJECT_ID, location=REGION)
-        index_endpoint = aiplatform.MatchingEngineIndexEndpoint(INDEX_ENDPOINT_ID)
-        return index_endpoint
+        self.index = self.create_index(self.doc_embeddings)
+
+    def create_index(self, embeddings):
+        dimension = embeddings.shape[1]
+        index = AnnoyIndex(dimension, 'euclidean')
+        for i, emb in enumerate(embeddings):
+            index.add_item(i, emb)
+        index.build(200)
+        return index
 
     def get_embedding(self, text, model="models/text-embedding-004"):
         result = genai.embed_content(
@@ -47,14 +51,9 @@ class RAG:
 
     def retrieve_docs(self, user_input, threshold=0.5):
         input_embedding = self.get_embedding(user_input)
-        response = self.index_endpoint.find_neighbors(
-            deployed_index_id="senate_stock_rag_index_1740106911167", 
-            queries=[input_embedding],
-            num_neighbors=150 
-        )
+        similar_indices = self.index.get_nns_by_vector(input_embedding, 150, include_distances=False)
         similar_documents = []
-        for neighbor in response[0]:
-            i = int(neighbor.id)
+        for i in similar_indices:
             similarity = cosine_similarity([input_embedding], [self.doc_embeddings[i]])
             if similarity >= threshold:
                 similar_documents.append([self.documents[i], similarity])
