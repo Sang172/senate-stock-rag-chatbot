@@ -44,9 +44,20 @@ class RAG:
         return index
     
     def get_index_endpoint(self):
-        aiplatform.init(project=PROJECT_ID, location=REGION)
-        index_endpoint = aiplatform.MatchingEngineIndexEndpoint(INDEX_ENDPOINT_ID)
-        return index_endpoint
+        logger.info("Entering get_index_endpoint function")
+        logger.info(f"Project ID: {PROJECT_ID}, Region: {REGION}, Index Endpoint ID: {INDEX_ENDPOINT_ID}")
+        try:
+            logger.info("Initializing aiplatform...")
+            aiplatform.init(project=PROJECT_ID, location=REGION)
+            logger.info("aiplatform.init successful")
+            logger.info("Creating MatchingEngineIndexEndpoint...")
+            index_endpoint = aiplatform.MatchingEngineIndexEndpoint(INDEX_ENDPOINT_ID)
+            logger.info("MatchingEngineIndexEndpoint creation successful")
+            return index_endpoint
+        except Exception as e:
+            logger.error(f"Error in get_index_endpoint: {e}")
+            raise
+
 
     def get_embedding(self, text, model="models/text-embedding-004"):
         result = genai.embed_content(
