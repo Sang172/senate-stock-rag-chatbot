@@ -264,16 +264,12 @@ def process_data(bucket_name, filename):
     upload_embeddings_to_gcs(doc_embeddings, doc_ids, GCS_BUCKET_NAME, 'add/embeddings.json')
     LOGGER.info("Successfully saved document embeddings to GCS bucket")
 
-    """
     LOGGER.info("Start updating Vertex AI vector search index.")
     create_delete(GCS_BUCKET_NAME, "delete/embeddings.json")
     update_index('gs://senate-stock-rag-chatbot/delete/')
-    time.sleep(3600)
+    time.sleep(2400)
     update_index('gs://senate-stock-rag-chatbot/add/')
-    time.sleep(3600)
     LOGGER.info("Vertex AI vector search index update complete.")
-    """
-
 
 if __name__ == '__main__':
     log_format = '[%(asctime)s %(levelname)s] %(message)s'
