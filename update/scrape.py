@@ -233,7 +233,7 @@ def create_delete(bucket_name, gcs_file_path, start_id: int = 0, end_id: int = 1
 
 def update_index(gcs_filepath):
     aiplatform.init(project=PROJECT_ID, location=REGION)
-    index = aiplatform.MatchingEngine
+    index = aiplatform.MatchingEngineIndex(INDEX_ID)
     operation = index.update_embeddings(contents_delta_uri=gcs_filepath)
 
 
