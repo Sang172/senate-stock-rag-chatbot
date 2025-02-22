@@ -231,12 +231,6 @@ def create_delete(bucket_name, gcs_file_path, start_id: int = 0, end_id: int = 1
     os.remove(temp_file_path)
 
 
-def update_index(gcs_filepath):
-    aiplatform.init(project=PROJECT_ID, location=REGION)
-    index = aiplatform.MatchingEngineIndex(INDEX_ID)
-    operation = index.update_embeddings(contents_delta_uri=gcs_filepath)
-
-
 def process_data(bucket_name, filename):
     LOGGER.info("Reading data from senate_trade.pickle")
     data = load_from_gcs(bucket_name, filename)
@@ -265,10 +259,10 @@ def process_data(bucket_name, filename):
     LOGGER.info("Successfully saved document embeddings to GCS bucket")
 
     LOGGER.info("Start updating Vertex AI vector search index.")
-    create_delete(GCS_BUCKET_NAME, "delete/embeddings.json")
-    update_index('gs://senate-stock-rag-chatbot/delete/')
-    time.sleep(2400)
-    update_index('gs://senate-stock-rag-chatbot/add/')
+    # create_delete(GCS_BUCKET_NAME, "delete/embeddings.json")
+    aiplatform.init(project=PROJECT_ID, location=REGION)
+    index = aiplatform.MatchingEngineIndex(INDEX_ID)
+    operation = index.update_embeddings(contents_delta_uri='gs://senate-stock-rag-chatbot/add/', is_complete_overwrite=True)
     LOGGER.info("Vertex AI vector search index update complete.")
 
 if __name__ == '__main__':
