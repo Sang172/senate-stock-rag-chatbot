@@ -153,6 +153,7 @@ app = Flask(__name__)
 def index():
     return render_template("index.html", messages=rag.memory)
 
+
 @app.route("/api/chat", methods=["POST"])
 def chat():
     user_input = request.json.get("message")
@@ -162,6 +163,7 @@ def chat():
 
     response = rag.run(user_input)
     return jsonify({"response": response, "history": rag.memory}) 
+
 
 if __name__ == "__main__":
     logger.info("About to start Flask app on port 5000")
