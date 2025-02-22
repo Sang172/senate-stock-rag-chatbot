@@ -54,7 +54,7 @@ jobs:
           --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest \
           --region ${{ env.REGION }} \
           --allow-unauthenticated \
-          --set-env-vars="GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},GCP_REGION=${{ secrets.GCP_REGION }},INDEX_ENDPOINT_ID=${{ secrets.INDEX_ENDPOINT_ID }}" \
+          --set-env-vars="GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},GCP_REGION=${{ secrets.GCP_REGION }},INDEX_ENDPOINT_ID=${{ secrets.INDEX_ENDPOINT_ID }},DEPLOYED_INDEX_ID=${{ secrets.DEPLOYED_INDEX_ID }},INDEX_ID=${{ secrets.INDEX_ID }}" \
           --timeout=300s
 
   deploy-update:
@@ -97,8 +97,8 @@ jobs:
           --region ${{ env.REGION }} \
           --command "python" \
           --args "scrape.py" \
-          --set-env-vars="GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" \
-          --task-timeout=10800s \
+          --set-env-vars="GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},INDEX_ID=${{ secrets.INDEX_ID }},DEPLOYED_INDEX_ID=${{ secrets.DEPLOYED_INDEX_ID }},GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},GCP_REGION=${{ secrets.GCP_REGION }},INDEX_ENDPOINT_ID=${{ secrets.INDEX_ENDPOINT_ID }}" \
+          --task-timeout=18000s \
           --project ${{ env.PROJECT_ID }}
 
   deploy-trigger:

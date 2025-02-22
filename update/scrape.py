@@ -13,9 +13,16 @@ from dotenv import load_dotenv
 from google.cloud import storage
 from process import process, get_embeddings, load_from_gcs
 import json
+from google.cloud import aiplatform
+import tempfile
 
 load_dotenv()
 GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
+PROJECT_ID = os.environ.get('GCP_PROJECT_ID')
+REGION = os.environ.get('GCP_REGION')
+INDEX_ID = os.environ.get('INDEX_ID')
+INDEX_ENDPOINT_ID = os.environ.get('INDEX_ENDPOINT_ID')
+DEPLOYED_INDEX_ID = os.environ.get('DEPLOYED_INDEX_ID')
 
 ROOT = 'https://efdsearch.senate.gov'
 LANDING_PAGE_URL = '{}/search/home/'.format(ROOT)
@@ -211,10 +218,29 @@ def upload_embeddings_to_gcs(embeddings, doc_ids, bucket_name, destination_blob_
     LOGGER.info(f"Embeddings uploaded to gs://{bucket_name}/{destination_blob_name}")
 
 
+def create_delete(bucket_name, gcs_file_path, start_id: int = 0, end_id: int = 10000):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(gcs_file_path)
+    with tempfile.NamedTemporaryFile(mode='w', suffix=".json", delete=False) as temp_file:
+        temp_file_path = temp_file.name
+        for i in range(start_id, end_id):
+            item = {'id': str(i), 'delete': True}
+            temp_file.write(json.dumps(item) + "\n")
+        blob.upload_from_filename(temp_file_path)
+    os.remove(temp_file_path)
+
+
+def update_index(gcs_filepath):
+    aiplatform.init(project=PROJECT_ID, location=REGION)
+    index = aiplatform.MatchingEngine
+    operation = index.update_embeddings(contents_delta_uri=gcs_filepath)
+
+
 def process_data(bucket_name, filename):
     LOGGER.info("Reading data from senate_trade.pickle")
     data = load_from_gcs(bucket_name, filename)
-    LOGGER.info("Successfully read data from senate_trade.pickle")
+    LOGGER.info("Successfully read data")
 
     LOGGER.info("Processing data")
     documents = process(data)
@@ -232,13 +258,21 @@ def process_data(bucket_name, filename):
     LOGGER.info("Successfully saved documents to GCS bucket")
 
 
-    LOGGER.info("Saving document embeddings to doc_embeddings.pickle and embeddings/embeddings.json in GCS bucket")
+    LOGGER.info("Saving document embeddings to doc_embeddings.pickle and add/embeddings.json in GCS bucket")
     save_to_gcs(bucket_name, 'doc_embeddings.pickle', doc_embeddings)
     doc_ids = [str(i) for i in range(len(doc_embeddings))]
-    upload_embeddings_to_gcs(doc_embeddings, doc_ids, GCS_BUCKET_NAME, 'embeddings/embeddings.json')
+    upload_embeddings_to_gcs(doc_embeddings, doc_ids, GCS_BUCKET_NAME, 'add/embeddings.json')
     LOGGER.info("Successfully saved document embeddings to GCS bucket")
 
-    LOGGER.info("Data processed and saved to GCS.")
+    """
+    LOGGER.info("Start updating Vertex AI vector search index.")
+    create_delete(GCS_BUCKET_NAME, "delete/embeddings.json")
+    update_index('gs://senate-stock-rag-chatbot/delete/')
+    time.sleep(3600)
+    update_index('gs://senate-stock-rag-chatbot/add/')
+    time.sleep(3600)
+    LOGGER.info("Vertex AI vector search index update complete.")
+    """
 
 
 if __name__ == '__main__':

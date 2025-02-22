@@ -23,6 +23,7 @@ genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 PROJECT_ID = os.environ.get('GCP_PROJECT_ID')
 REGION = os.environ.get('GCP_REGION')
 INDEX_ENDPOINT_ID = os.environ.get('INDEX_ENDPOINT_ID')
+DEPLOYED_INDEX_ID = os.environ.get('DEPLOYED_INDEX_ID')
 
 
 class RAG:
@@ -49,7 +50,7 @@ class RAG:
     def retrieve_docs(self, user_input, threshold=0.5):
         input_embedding = self.get_embedding(user_input)
         response = self.index_endpoint.find_neighbors(
-            deployed_index_id="senate_stock_rag_index_1740106911167", 
+            deployed_index_id=DEPLOYED_INDEX_ID, 
             queries=[input_embedding],
             num_neighbors=150
         )
