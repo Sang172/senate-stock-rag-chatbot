@@ -102,14 +102,19 @@ class RAG:
 
         retrieved_docs = self.retrieve_docs(augmented_query)
         if not retrieved_docs:
-            return "I'm sorry. I have no data that is relevant to your input."
+            return "I'm sorry. I do not have the relevant data to answer your question."
         logger.info(f"{len(retrieved_docs)} documents retrieved")
         logger.info(f"{retrieved_docs[0]}")
 
         prompt = "You are an expert in analyzing stock transaction records."
         prompt += f"\nAnswer the user query '{user_input}' based on the documents provided below."
-        prompt += "\nAlso take the conversation history into account if provided and relevant."
-        prompt += "\nIf there are documents that are irrelevant to the query, ignore those documents."
+        prompt += "\nYour response should only be based on the user query and documents."
+        prompt += "\nAlso take the conversation history into account if provided and relevant to the query."
+        prompt += "\nIf there are documents that are unrelated to the query, ignore those documents."
+        prompt += "\nIf none of the documents have information that is necessary to answer the user query, say"
+        prompt += " 'I'm sorry, I do not have the relevant data to answer your question.'."
+        prompt += "\nIf the user query is unrelated to stock trading, say"
+        prompt += " 'I'm sorry, I can only proivde answers related to stock trading records.'."
         prompt += "\nIn your response, do not mention that you obtained information from the documents/data/records."
         prompt += "\nSpeak as if you already know the information without relying on documents/data/records."
         prompt += '\n\nDocuments:\n'
