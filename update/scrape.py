@@ -218,18 +218,6 @@ def upload_embeddings_to_gcs(embeddings, doc_ids, bucket_name, destination_blob_
     LOGGER.info(f"Embeddings uploaded to gs://{bucket_name}/{destination_blob_name}")
 
 
-def create_delete(bucket_name, gcs_file_path, start_id: int = 0, end_id: int = 10000):
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
-    blob = bucket.blob(gcs_file_path)
-    with tempfile.NamedTemporaryFile(mode='w', suffix=".json", delete=False) as temp_file:
-        temp_file_path = temp_file.name
-        for i in range(start_id, end_id):
-            item = {'id': str(i), 'delete': True}
-            temp_file.write(json.dumps(item) + "\n")
-        blob.upload_from_filename(temp_file_path)
-    os.remove(temp_file_path)
-
 
 def process_data(bucket_name, filename):
     LOGGER.info("Reading data from senate_trade.pickle")
@@ -252,27 +240,26 @@ def process_data(bucket_name, filename):
     LOGGER.info("Successfully saved documents to GCS bucket")
 
 
-    LOGGER.info("Saving document embeddings to doc_embeddings.pickle and add/embeddings.json in GCS bucket")
+    LOGGER.info("Saving document embeddings to doc_embeddings.pickle and update/embeddings.json in GCS bucket")
     save_to_gcs(bucket_name, 'doc_embeddings.pickle', doc_embeddings)
     doc_ids = [str(i) for i in range(len(doc_embeddings))]
-    upload_embeddings_to_gcs(doc_embeddings, doc_ids, GCS_BUCKET_NAME, 'add/embeddings.json')
+    upload_embeddings_to_gcs(doc_embeddings, doc_ids, GCS_BUCKET_NAME, 'update/embeddings.json')
     LOGGER.info("Successfully saved document embeddings to GCS bucket")
 
     LOGGER.info("Start updating Vertex AI vector search index.")
-    # create_delete(GCS_BUCKET_NAME, "delete/embeddings.json")
     aiplatform.init(project=PROJECT_ID, location=REGION)
     index = aiplatform.MatchingEngineIndex(INDEX_ID)
-    operation = index.update_embeddings(contents_delta_uri='gs://senate-stock-rag-chatbot/add/', is_complete_overwrite=True)
+    operation = index.update_embeddings(contents_delta_uri='gs://senate-stock-rag-chatbot/update/', is_complete_overwrite=True)
     LOGGER.info("Vertex AI vector search index update complete.")
 
 if __name__ == '__main__':
     log_format = '[%(asctime)s %(levelname)s] %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_format)
-    # senator_txs = main()
+    senator_txs = main()
     LOGGER.info('Dumping to .pickle')
 
     
-    # save_to_gcs(GCS_BUCKET_NAME, 'senate_trade.pickle', senator_txs)
+    save_to_gcs(GCS_BUCKET_NAME, 'senate_trade.pickle', senator_txs)
     LOGGER.info('Successfully uploaded senate_trade.pickle to GCS bucket: {}'.format(GCS_BUCKET_NAME))
 
     process_data(GCS_BUCKET_NAME, 'senate_trade.pickle')
