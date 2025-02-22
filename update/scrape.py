@@ -274,11 +274,11 @@ def process_data(bucket_name, filename):
 if __name__ == '__main__':
     log_format = '[%(asctime)s %(levelname)s] %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_format)
-    senator_txs = main()
+    # senator_txs = main()
     LOGGER.info('Dumping to .pickle')
 
     
-    save_to_gcs(GCS_BUCKET_NAME, 'senate_trade.pickle', senator_txs)
+    # save_to_gcs(GCS_BUCKET_NAME, 'senate_trade.pickle', senator_txs)
     LOGGER.info('Successfully uploaded senate_trade.pickle to GCS bucket: {}'.format(GCS_BUCKET_NAME))
 
     process_data(GCS_BUCKET_NAME, 'senate_trade.pickle')
