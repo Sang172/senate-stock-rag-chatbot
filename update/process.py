@@ -89,7 +89,7 @@ def process(data):
 
     summary_ticker = pd.DataFrame(data[['Ticker', 'Asset Name']].groupby('Ticker').count().sort_values('Asset Name', ascending=False))
     title = f'Summary of Transaction Records Based on Ticker\n\n'
-    title += 'Contain information on which ticker was most actively traded.\n\n'
+    title += 'Contains information on which ticker was most actively traded.\n\n'
 
     for i in range(summary_ticker.shape[0]):
         ticker = summary_ticker.index[i]
