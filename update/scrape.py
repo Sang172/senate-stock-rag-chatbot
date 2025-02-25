@@ -36,14 +36,14 @@ PDF_PREFIX = '/search/view/paper/'
 LANDING_PAGE_FAIL = 'Failed to fetch filings landing page'
 
 REPORT_COL_NAMES = [
-    'tx_date',
+    'transaction_date',
     'file_date',
     'last_name',
     'first_name',
     'order_type',
-    'ticker',
+    'stock_ticker',
     'asset_name',
-    'tx_amount'
+    'transaction_amount'
 ]
 
 LOGGER = logging.getLogger(__name__)
