@@ -35,40 +35,26 @@ class RAG:
         self.index_endpoint = self.get_index_endpoint()
     
     def get_index_endpoint(self):
+        """Retrieves a Vertex AI Matching Engine Index Endpoint"""
         aiplatform.init(project=PROJECT_ID, location=REGION)
         index_endpoint = aiplatform.MatchingEngineIndexEndpoint(INDEX_ENDPOINT_ID)
         return index_endpoint
 
-
+    def get_gemini_response(self, prompt):
+        """Returns a parsed response from Gemini"""
+        response = self.llm.generate_content(prompt)
+        return response.text.strip()
+    
     def get_embedding(self, text, model="models/text-embedding-004"):
+        """Retrieves vector embedding for a query"""
         result = genai.embed_content(
             model=model,
             content=text
         )
         return result['embedding']
 
-    def retrieve_docs(self, user_input, threshold=0.5):
-        input_embedding = self.get_embedding(user_input)
-        response = self.index_endpoint.find_neighbors(
-            deployed_index_id=DEPLOYED_INDEX_ID, 
-            queries=[input_embedding],
-            num_neighbors=150
-        )
-        similar_documents = []
-        for neighbor in response[0]:
-            i = int(neighbor.id)
-            similarity = cosine_similarity([input_embedding], [self.doc_embeddings[i]])
-            if similarity >= threshold:
-                similar_documents.append([self.documents[i], similarity])
-        similar_documents = sorted(similar_documents, key = lambda x: x[1], reverse=True)
-        similar_documents = [x[0] for x in similar_documents]
-        return similar_documents
-
-    def get_gemini_response(self, prompt):
-        response = self.llm.generate_content(prompt)
-        return response.text.strip()
-    
     def augment_query(self, user_query):
+        """Augments user query for better vector search"""
         prompt = f"""
         You are an expert in information about the stock market.
         Identify all relevant information from the user query (and conversation history if provided) below: person names, time, and company names/stock tickers.
@@ -91,8 +77,41 @@ class RAG:
         return user_query + '\n' + info
 
 
-    def run(self, user_input):
+    def retrieve_docs(self, user_input, threshold=0.5):
+        """Retrieves documents similar to a user input query.
+        Args:
+            user_input: The user's query string.
+            threshold: The minimum cosine similarity score for a document to be
+                considered relevant (default: 0.5).
+        Returns:
+            A list of documents (strings) that are similar to the user input,
+            sorted by similarity in descending order.
+        """
+        input_embedding = self.get_embedding(user_input)
+        response = self.index_endpoint.find_neighbors(
+            deployed_index_id=DEPLOYED_INDEX_ID, 
+            queries=[input_embedding],
+            num_neighbors=150
+        )
+        similar_documents = []
+        for neighbor in response[0]:
+            i = int(neighbor.id)
+            similarity = cosine_similarity([input_embedding], [self.doc_embeddings[i]])
+            if similarity >= threshold:
+                similar_documents.append([self.documents[i], similarity])
+        similar_documents = sorted(similar_documents, key = lambda x: x[1], reverse=True)
+        similar_documents = [x[0] for x in similar_documents]
+        return similar_documents
 
+
+    def run(self, user_input):
+        """Runs the chatbot query and response generation process.
+        Args:
+            user_input: The user's query string.
+        Returns:
+            The LLM's response as a string.
+        """
+        
         history_str = ""
         if self.memory:
             history_str = "\n\nConversation History:\n"
@@ -168,8 +187,6 @@ def chat():
 
     response = rag.run(user_input)
     return jsonify({"response": response, "history": rag.memory}) 
-
-
 
 if __name__ == "__main__":
     logger.info("About to start Flask app on port 5000")

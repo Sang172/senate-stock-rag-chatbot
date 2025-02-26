@@ -11,7 +11,7 @@ import time
 from typing import Any, List, Optional
 from dotenv import load_dotenv
 from google.cloud import storage
-from process import process, get_embeddings, load_from_gcs
+from process import process, get_embeddings, load_from_gcs, save_to_gcs
 import json
 from google.cloud import aiplatform
 import tempfile
@@ -51,6 +51,12 @@ LOGGER = logging.getLogger(__name__)
 
 
 def add_rate_limit(f):
+    """Adds a rate limit to a function by pausing execution for a predefined time.
+    Args:
+        f: The function to be rate-limited.
+    Returns:
+        The rate-limited function.
+    """
     def with_rate_limit(*args, **kw):
         time.sleep(RATE_LIMIT_SECS)
         return f(*args, **kw)
@@ -58,7 +64,16 @@ def add_rate_limit(f):
 
 
 def _csrf(client: requests.Session) -> str:
-    """ Set the session ID and return the CSRF token for this session. """
+    """Retrieves the CSRF token from a web page.
+    This function simulates the initial interaction with a website to obtain
+    a CSRF token. It first loads the landing page, extracts the token from
+    a form, submits the form, and then retrieves the token from the client's
+    cookies.
+    Args:
+        client: A requests.Session object to manage cookies and connections.
+    Returns:
+        The CSRF token as a string.
+    """
     landing_page_response = client.get(LANDING_PAGE_URL)
     assert landing_page_response.url == LANDING_PAGE_URL, LANDING_PAGE_FAIL
 
@@ -82,7 +97,12 @@ def _csrf(client: requests.Session) -> str:
 
 
 def senator_reports(client: requests.Session) -> List[List[str]]:
-    """ Return all results from the periodic transaction reports API. """
+    """Retrieves all senator reports using pagination.
+    Args:
+        client: A requests.Session object for making HTTP requests.
+    Returns:
+        A list of lists of strings, representing the collected reports.
+    """
     token = _csrf(client)
     idx = 0
     reports = reports_api(client, idx, token)
@@ -99,7 +119,15 @@ def reports_api(
     offset: int,
     token: str
 ) -> List[List[str]]:
-    """ Query the periodic transaction reports API. """
+    """Queries the periodic transaction reports API.
+    Args:
+        client: A requests.Session object for making HTTP requests.
+        offset: The starting index for the data to retrieve.
+        token: The CSRF token for the request.
+    Returns:
+        A list of lists of strings, representing the transaction reports data.
+        Returns an empty list if no data is found.
+    """
     login_data = {
         'start': str(offset),
         'length': str(BATCH_SIZE),
@@ -121,10 +149,15 @@ def reports_api(
     return response.json()['data']
 
 
+
 def _tbody_from_link(client: requests.Session, link: str) -> Optional[Any]:
-    """
-    Return the tbody element containing transactions for this senator.
-    Return None if no such tbody element exists.
+    """Retrieves the tbody element containing transactions from a given link.
+    Args:
+        client: A requests.Session object for making HTTP requests.
+        link: The relative URL link to the report page.
+    Returns:
+        The BeautifulSoup object representing the tbody element if found,
+        otherwise None.
     """
     report_url = '{0}{1}'.format(ROOT, link)
     report_response = client.get(report_url)
@@ -141,9 +174,14 @@ def _tbody_from_link(client: requests.Session, link: str) -> Optional[Any]:
 
 
 def txs_for_report(client: requests.Session, row: List[str]) -> pd.DataFrame:
-    """
-    Convert a row from the periodic transaction reports API to a DataFrame
-    of transactions.
+    """Converts a row from the periodic transaction reports API to a DataFrame.
+    Args:
+        client: A requests.Session object for making HTTP requests.
+        row: A list of strings representing a row from the reports API.
+    Returns:
+        A Pandas DataFrame containing the extracted transaction data.  Returns
+        an empty DataFrame if the report is a PDF link or if no tbody element
+        is found.
     """
     first, last, _, link_html, date_received = row
     link = BeautifulSoup(link_html, 'lxml').a.get('href')
@@ -174,7 +212,13 @@ def txs_for_report(client: requests.Session, row: List[str]) -> pd.DataFrame:
     return pd.DataFrame(stocks).rename(
         columns=dict(enumerate(REPORT_COL_NAMES)))
 
+
+
 def main() -> pd.DataFrame:
+    """Main function to retrieve and compile senator transaction data.
+    Returns:
+        A Pandas DataFrame containing all extracted senator transaction data.
+    """
     LOGGER.info('Initializing client')
     client = requests.Session()
     client.get = add_rate_limit(client.get)
@@ -190,18 +234,16 @@ def main() -> pd.DataFrame:
     return all_txs
 
 
-def save_to_gcs(bucket_name, filename, dataframe):
-    storage_client = storage.Client('a')
-    bucket = storage_client.bucket(bucket_name)
-    blob = bucket.blob(filename)
-    temp_file_path = f"temp_{filename}"
-    with open(temp_file_path, "wb") as temp_file:
-        pickle.dump(dataframe, temp_file)
-    blob.upload_from_filename(temp_file_path)
-    os.remove(temp_file_path)
 
 
 def upload_embeddings_to_gcs(embeddings, doc_ids, bucket_name, destination_blob_name):
+    """Uploads embeddings to Google Cloud Storage.
+    Args:
+        embeddings: A list of embeddings (each embedding is a list of floats).
+        doc_ids: A list of document IDs corresponding to the embeddings.
+        bucket_name: The string name of the GCS bucket.
+        destination_blob_name: The string name of the blob (file) within the bucket.
+    """
     storage_client = storage.Client()
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(destination_blob_name)
@@ -220,6 +262,11 @@ def upload_embeddings_to_gcs(embeddings, doc_ids, bucket_name, destination_blob_
 
 
 def process_data(bucket_name, filename):
+    """Processes data, creates embeddings, and updates a Vertex AI Vector Search index.
+    Args:
+        bucket_name: The string name of the GCS bucket.
+        filename: The string name of the file to load from the bucket (initial data).
+    """
     LOGGER.info("Reading data from senate_trade.pickle")
     data = load_from_gcs(bucket_name, filename)
     LOGGER.info("Successfully read data")
@@ -252,13 +299,12 @@ def process_data(bucket_name, filename):
     operation = index.update_embeddings(contents_delta_uri='gs://senate-stock-rag-chatbot/update/', is_complete_overwrite=True)
     LOGGER.info("Vertex AI vector search index update complete.")
 
+
+
 if __name__ == '__main__':
     log_format = '[%(asctime)s %(levelname)s] %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_format)
     senator_txs = main()
-    LOGGER.info('Dumping to .pickle')
-
-    
     save_to_gcs(GCS_BUCKET_NAME, 'senate_trade.pickle', senator_txs)
     LOGGER.info('Successfully uploaded senate_trade.pickle to GCS bucket: {}'.format(GCS_BUCKET_NAME))
 
