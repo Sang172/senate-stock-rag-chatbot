@@ -41,12 +41,12 @@ class RAG:
         return index_endpoint
 
     def get_gemini_response(self, prompt):
-        """Returns a parsed response from Gemini"""
+        """Returns a parsed response from Gemini given a prompt string"""
         response = self.llm.generate_content(prompt)
         return response.text.strip()
     
     def get_embedding(self, text, model="models/text-embedding-004"):
-        """Retrieves vector embedding for a query"""
+        """Retrieves vector embedding for a query string"""
         result = genai.embed_content(
             model=model,
             content=text
@@ -54,7 +54,7 @@ class RAG:
         return result['embedding']
 
     def augment_query(self, user_query):
-        """Augments user query for better vector search"""
+        """Augments user query string for better vector search"""
         prompt = f"""
         You are an expert in information about the stock market.
         Identify all relevant information from the user query (and conversation history if provided) below: person names, time, and company names/stock tickers.
@@ -111,7 +111,7 @@ class RAG:
         Returns:
             The LLM's response as a string.
         """
-        
+
         history_str = ""
         if self.memory:
             history_str = "\n\nConversation History:\n"

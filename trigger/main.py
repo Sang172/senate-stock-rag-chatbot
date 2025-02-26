@@ -10,6 +10,12 @@ app = Flask(__name__)
 
 @app.route('/', methods=['POST'])
 def trigger_job():
+    """Triggers a Cloud Run job via a POST request.
+    Returns:
+        A Flask Response object (JSON) with status and message.  Returns a
+        success message (status code 200) if the job is triggered successfully,
+        or an error message (status code 500) if an exception occurs.
+    """
     try:
         logger.info("Starting job trigger")
         

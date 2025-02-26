@@ -239,7 +239,7 @@ def main() -> pd.DataFrame:
 def upload_embeddings_to_gcs(embeddings, doc_ids, bucket_name, destination_blob_name):
     """Uploads embeddings to Google Cloud Storage.
     Args:
-        embeddings: A list of embeddings (each embedding is a list of floats).
+        embeddings: A numpy array of embeddings (each embedding is a list of floats).
         doc_ids: A list of document IDs corresponding to the embeddings.
         bucket_name: The string name of the GCS bucket.
         destination_blob_name: The string name of the blob (file) within the bucket.

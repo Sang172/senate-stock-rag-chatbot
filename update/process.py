@@ -31,8 +31,7 @@ def get_embeddings(texts, model="models/text-embedding-004", batch_size=50):
         batch_size: The number of texts to process in a single batch (default: 50).
     Returns:
         A list of embeddings, where each embedding is a list of floats representing
-        the vector embedding of the corresponding text.  Returns an empty list if
-        the input is empty.
+        the vector embedding of the corresponding text.
     """
     all_embeddings = []
     num_texts = len(texts)
@@ -59,8 +58,7 @@ def dataframe_to_string(df):
     Args:
         df: The Pandas DataFrame to convert.
     Returns:
-        A string representation of the DataFrame.  Returns an empty string if the
-        DataFrame is empty.
+        A string representation of the DataFrame.
     """
     string_representation = ""
     for i, row in df.iterrows():
