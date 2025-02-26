@@ -58,15 +58,15 @@ def process(data):
     for c in data.columns:
         data[c] = data[c].apply(lambda x: x.strip())
     for c in data.columns:
-        if c=='transaction_date':
+        if c=='tx_date':
             data[c] = pd.to_datetime(data[c])
 
     data['asset_name'] = data['asset_name'].apply(reduce_whitespace)
     data['Name'] = data['first_name'] + ' ' + data['last_name']
     data = data[data['order_type']!='Exchange']
-    data.loc[data['stock_ticker'] == 'SPY160219P00180000', 'stock_ticker'] = 'SPY'
+    data.loc[data['ticker'] == 'SPY160219P00180000', 'ticker'] = 'SPY'
     data = data.drop(columns=['file_date','first_name','last_name'])
-    data['transaction_month'] = data['transaction_date'].dt.strftime('%B %Y')
+    data['tx_month'] = data['tx_date'].dt.strftime('%B %Y')
     data['Name'] = data['Name'].apply(lambda x: x[:-1] if x[-1]==',' else x)
     data.columns = ['Date','Order Type','Ticker','Asset Name','Amount','Name', 'Month']
 

@@ -36,70 +36,71 @@ PDF_PREFIX = '/search/view/paper/'
 LANDING_PAGE_FAIL = 'Failed to fetch filings landing page'
 
 REPORT_COL_NAMES = [
-    'transaction_date',
+    'tx_date',
     'file_date',
     'last_name',
     'first_name',
     'order_type',
-    'stock_ticker',
+    'ticker',
     'asset_name',
-    'transaction_amount'
+    'tx_amount'
 ]
 
 LOGGER = logging.getLogger(__name__)
 
 
-def apply_rate_limit(func):
-    def with_rate_limit(*args, **kwargs):
+
+def add_rate_limit(f):
+    def with_rate_limit(*args, **kw):
         time.sleep(RATE_LIMIT_SECS)
-        return func(*args, **kwargs)
+        return f(*args, **kw)
     return with_rate_limit
 
 
-def fetch_csrf_token(session: requests.Session) -> str:
-    landing_page_response = session.get(LANDING_PAGE_URL)
+def _csrf(client: requests.Session) -> str:
+    """ Set the session ID and return the CSRF token for this session. """
+    landing_page_response = client.get(LANDING_PAGE_URL)
     assert landing_page_response.url == LANDING_PAGE_URL, LANDING_PAGE_FAIL
 
-    landing_page_soup = BeautifulSoup(landing_page_response.text, 'lxml')
-    csrf_token_element = landing_page_soup.find(attrs={'name': 'csrfmiddlewaretoken'})
-    csrf_token_value = csrf_token_element['value'] if csrf_token_element else None
-
+    landing_page = BeautifulSoup(landing_page_response.text, 'lxml')
+    form_csrf = landing_page.find(
+        attrs={'name': 'csrfmiddlewaretoken'}
+    )['value']
     form_payload = {
-        'csrfmiddlewaretoken': csrf_token_value,
+        'csrfmiddlewaretoken': form_csrf,
         'prohibition_agreement': '1'
     }
-    session.post(LANDING_PAGE_URL,
+    client.post(LANDING_PAGE_URL,
                 data=form_payload,
                 headers={'Referer': LANDING_PAGE_URL})
 
-    if 'csrftoken' in session.cookies:
-        csrf_token = session.cookies['csrftoken']
+    if 'csrftoken' in client.cookies:
+        csrftoken = client.cookies['csrftoken']
     else:
-        csrf_token = session.cookies['csrf']
-    return csrf_token
+        csrftoken = client.cookies['csrf']
+    return csrftoken
 
 
-def get_senator_financial_reports(session: requests.Session) -> List[List[str]]:
-    csrf_token = fetch_csrf_token(session)
-    offset = 0
-    current_batch_reports = query_reports_api(session, offset, csrf_token)
+def senator_reports(client: requests.Session) -> List[List[str]]:
+    """ Return all results from the periodic transaction reports API. """
+    token = _csrf(client)
+    idx = 0
+    reports = reports_api(client, idx, token)
     all_reports: List[List[str]] = []
-
-    while current_batch_reports:
-        all_reports.extend(current_batch_reports)
-        offset += BATCH_SIZE
-        current_batch_reports = query_reports_api(session, offset, csrf_token)
-
+    while len(reports) != 0:
+        all_reports.extend(reports)
+        idx += BATCH_SIZE
+        reports = reports_api(client, idx, token)
     return all_reports
 
 
-def query_reports_api(
-    session: requests.Session,
+def reports_api(
+    client: requests.Session,
     offset: int,
-    csrf_token: str
+    token: str
 ) -> List[List[str]]:
-
-    request_payload = {
+    """ Query the periodic transaction reports API. """
+    login_data = {
         'start': str(offset),
         'length': str(BATCH_SIZE),
         'report_types': '[11]',
@@ -111,92 +112,82 @@ def query_reports_api(
         'office_id': '',
         'first_name': '',
         'last_name': '',
-        'csrfmiddlewaretoken': csrf_token
+        'csrfmiddlewaretoken': token
     }
-    LOGGER.info(f'Fetching report rows starting from offset: {offset}')
-    response = session.post(REPORTS_URL,
-                           data=request_payload,
+    LOGGER.info('Getting rows starting at {}'.format(offset))
+    response = client.post(REPORTS_URL,
+                           data=login_data,
                            headers={'Referer': SEARCH_PAGE_URL})
     return response.json()['data']
 
 
-def extract_table_body_from_report_link(session: requests.Session, report_link: str) -> Optional[Any]:
-
-    report_url = f'{ROOT}{report_link}' 
-    report_response = session.get(report_url)
-
+def _tbody_from_link(client: requests.Session, link: str) -> Optional[Any]:
+    """
+    Return the tbody element containing transactions for this senator.
+    Return None if no such tbody element exists.
+    """
+    report_url = '{0}{1}'.format(ROOT, link)
+    report_response = client.get(report_url)
+    # If the page is redirected, then the session ID has expired
     if report_response.url == LANDING_PAGE_URL:
-        LOGGER.info('Session expired, resetting CSRF token and session cookie.')
-        fetch_csrf_token(session) 
-        report_response = session.get(report_url) 
-
-    report_soup = BeautifulSoup(report_response.text, 'lxml')
-    table_bodies = report_soup.find_all('tbody')
-    if not table_bodies:
+        LOGGER.info('Resetting CSRF token and session cookie')
+        _csrf(client)
+        report_response = client.get(report_url)
+    report = BeautifulSoup(report_response.text, 'lxml')
+    tbodies = report.find_all('tbody')
+    if len(tbodies) == 0:
         return None
-    return table_bodies[0]
+    return tbodies[0]
 
 
-def create_transactions_dataframe(session: requests.Session, report_row: List[str]) -> pd.DataFrame:
-
-    first_name, last_name, _, link_html, received_date = report_row
-    link_element_soup = BeautifulSoup(link_html, 'lxml')
-    link = link_element_soup.a.get('href')
-
-    if link and link.startswith(PDF_PREFIX): 
+def txs_for_report(client: requests.Session, row: List[str]) -> pd.DataFrame:
+    """
+    Convert a row from the periodic transaction reports API to a DataFrame
+    of transactions.
+    """
+    first, last, _, link_html, date_received = row
+    link = BeautifulSoup(link_html, 'lxml').a.get('href')
+    if link[:len(PDF_PREFIX)] == PDF_PREFIX:
         return pd.DataFrame()
 
-    transaction_table_body = extract_table_body_from_report_link(session, link)
-    if transaction_table_body is None:
+    tbody = _tbody_from_link(client, link)
+    if not tbody:
         return pd.DataFrame()
 
-    stock_transactions = []
-    for transaction_row in transaction_table_body.find_all('tr'):
-        transaction_columns = [col.get_text() for col in transaction_row.find_all('td')]
-        (transaction_date, _, _, stock_ticker, asset_name, asset_type, order_type, transaction_amount) = transaction_columns[1], transaction_columns[2], transaction_columns[3], transaction_columns[4], transaction_columns[5], transaction_columns[6], transaction_columns[7], transaction_columns[8] # directly unpack relevant columns
-
-        if asset_type != 'Stock' and stock_ticker.strip() in ('--', ''): # more descriptive variable name stock_ticker
+    stocks = []
+    for table_row in tbody.find_all('tr'):
+        cols = [c.get_text() for c in table_row.find_all('td')]
+        tx_date, ticker, asset_name, asset_type, order_type, tx_amount =\
+            cols[1], cols[3], cols[4], cols[5], cols[6], cols[7]
+        if asset_type != 'Stock' and ticker.strip() in ('--', ''):
             continue
-
-        stock_transactions.append([
-            transaction_date,
-            received_date,
-            last_name,
-            first_name,
+        stocks.append([
+            tx_date,
+            date_received,
+            last,
+            first,
             order_type,
-            stock_ticker,
+            ticker,
             asset_name,
-            transaction_amount
+            tx_amount
         ])
-
-    return pd.DataFrame(stock_transactions, columns=REPORT_COL_NAMES)
-
+    return pd.DataFrame(stocks).rename(
+        columns=dict(enumerate(REPORT_COL_NAMES)))
 
 def main() -> pd.DataFrame:
-    """
-    Main function to orchestrate fetching and processing of senator financial reports.
-
-    Initializes a session, applies rate limiting, retrieves reports,
-    processes each report to extract transactions, and compiles all transactions
-    into a single Pandas DataFrame.
-    """
-    LOGGER.info('Initializing HTTP session with rate limiting.') 
-    session = requests.Session()
-    session.get = apply_rate_limit(session.get) 
-    session.post = apply_rate_limit(session.post) 
-
-    all_reports = get_senator_financial_reports(session)
-    all_transactions = pd.DataFrame()
-
-    for index, report_row in enumerate(all_reports): 
-        if index % 10 == 0:
-            LOGGER.info(f'Processing report #{index}/{len(all_reports)}') 
-            LOGGER.info(f'Aggregated transactions so far: {len(all_transactions)}') 
-        transactions = create_transactions_dataframe(session, report_row)
-        all_transactions = pd.concat([all_transactions, transactions], ignore_index=True)
-
-    LOGGER.info(f'Total transactions fetched: {len(all_transactions)}') 
-    return all_transactions
+    LOGGER.info('Initializing client')
+    client = requests.Session()
+    client.get = add_rate_limit(client.get)
+    client.post = add_rate_limit(client.post)
+    reports = senator_reports(client)
+    all_txs = pd.DataFrame()
+    for i, row in enumerate(reports):
+        if i % 10 == 0:
+            LOGGER.info('Fetching report #{}'.format(i))
+            LOGGER.info('{} transactions total'.format(len(all_txs)))
+        txs = txs_for_report(client, row)
+        all_txs = pd.concat([all_txs, txs], ignore_index=True)
+    return all_txs
 
 
 def save_to_gcs(bucket_name, filename, dataframe):
