@@ -33,4 +33,4 @@ Plans include:
 ## Links
 - [Medium Blog Post](https://medium.com/@sang.ahn.94/making-senators-stock-market-trading-information-accessible-a-rag-chatbot-powered-by-vertex-ai-d88f345ddbfc)
 - [Demo Video](https://youtu.be/od7znGNRQoA)
-
+- Scraping functionality is based on this [Github Repo](https://github.com/neelsomani/senator-filings/blob/master/main.py)
