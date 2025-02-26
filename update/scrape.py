@@ -1,4 +1,5 @@
-""" Scrape the stock transactions from Senator periodic filings. """
+# Scraping functionalities are based on the work of Neel Somani
+# https://github.com/neelsomani/senator-filings/blob/master/main.py
 
 from bs4 import BeautifulSoup
 import numpy as np
