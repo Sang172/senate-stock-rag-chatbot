@@ -4,7 +4,6 @@ import numpy as np
 import google.generativeai as genai
 from dotenv import load_dotenv
 import os
-from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from flask import Flask, render_template, request, jsonify
 import logging
@@ -96,7 +95,7 @@ class RAG:
         similar_documents = []
         for neighbor in response[0]:
             i = int(neighbor.id)
-            similarity = cosine_similarity([input_embedding], [self.doc_embeddings[i]])
+            similarity = neighbor.distance
             if similarity >= threshold:
                 similar_documents.append([self.documents[i], similarity])
         similar_documents = sorted(similar_documents, key = lambda x: x[1], reverse=True)
