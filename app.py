@@ -124,19 +124,21 @@ class RAG:
         logger.info(f"{len(retrieved_docs)} documents retrieved")
         logger.info(f"{retrieved_docs[0]}")
 
-        prompt = "You are an expert in analyzing stock transaction records."
-        prompt += f"\nAnswer the user query '{user_input}' based on the documents provided below."
-        prompt += "\nYour response should only be based on the user query and documents."
-        prompt += "\nAlso take the conversation history into account if provided and relevant to the query."
-        prompt += "\nIf there are documents that are unrelated to the query, ignore those documents."
-        prompt += "\nIf none of the documents have information that is necessary to answer the user query, say"
-        prompt += " 'I'm sorry, I do not have the relevant data to answer your question.'."
-        prompt += "\nIf the user query is unrelated to stock trading, say"
-        prompt += " 'I'm sorry, I can only proivde answers related to stock trading records.'."
-        prompt += "\nIn your response, do not mention that you obtained information from the documents/data/records."
-        prompt += "\nSpeak as if you already know the information without relying on documents/data/records."
-        prompt += '\n\nDocuments:\n'
-        prompt += '\n\n'.join(retrieved_docs)
+        prompt = f"""
+        You are an expert in analyzing stock transaction records.
+        Answer the user query '{user_input}' based on the documents provided below.
+        Your response should only be based on the user query and documents.
+        Also take the conversation history into account if provided and relevant to the query.
+        If there are documents that are unrelated to the query, ignore those documents.
+        If none of the documents have information that is necessary to answer the user query, say 'I'm sorry, I do not have the relevant data to answer your question.'.
+        If the user query is unrelated to stock trading, say 'I'm sorry, I can only provide answers related to stock trading records.'.
+        In your response, do not mention that you obtained information from the documents/data/records.
+        Speak as if you already know the information without relying on documents/data/records.
+
+        Documents:
+
+        {'\n\n'.join(retrieved_docs)}
+        """
         if self.memory:
             prompt += "\n\nConversation History:\n"
             for turn in self.memory:
