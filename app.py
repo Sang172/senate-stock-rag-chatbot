@@ -1,6 +1,5 @@
 
 import pickle
-import numpy as np
 import google.generativeai as genai
 from dotenv import load_dotenv
 import os
