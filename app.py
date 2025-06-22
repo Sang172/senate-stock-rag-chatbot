@@ -188,6 +188,7 @@ def chat():
     response = rag.run(user_input)
     return jsonify({"response": response, "history": rag.memory}) 
 
+
 if __name__ == "__main__":
     logger.info("About to start Flask app on port 5000")
     port = int(os.environ.get("PORT", 5000))
